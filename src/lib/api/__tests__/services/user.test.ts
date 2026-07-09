@@ -15,9 +15,8 @@ vi.mock('../../../api/client', () => ({
 
 const mockUser = {
 	name: 'Martin',
-	email: 'martin@test.com',
 	bio: 'Photographer',
-	image: '/pic.jpg'
+	pic: '/pic.jpg'
 };
 const mockConfig = { columns: 3, spacing: 4, photoPath: '/photos', thumbPath: '/thumbs' };
 
