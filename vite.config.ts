@@ -17,14 +17,12 @@ export default defineConfig({
 		})
 	],
 	server: {
-		proxy: {
-			// Dev only: forward /api (photos, images, thumbs, auth, ...) to the Go backend
-			// so session cookies stay same-origin. In prod nginx does this instead.
-			'/api': {
-				target: 'http://localhost:8050',
-				changeOrigin: true
-			}
-		}
+		// Match mphotos-ui: the frontend dev server runs on 3000 and is reached
+		// through the nginx reverse proxy (localhost:8060), which routes / here and
+		// /api to the Go backend. No app-level /api proxy — dev mirrors production,
+		// so there is a single request path and no host/header divergence to surprise us.
+		port: 3000,
+		strictPort: true
 	},
 	test: {
 		environment: 'jsdom',
