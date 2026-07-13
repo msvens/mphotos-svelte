@@ -2,6 +2,7 @@ import tailwindcss from '@tailwindcss/vite';
 import { defineConfig } from 'vitest/config';
 import adapter from '@sveltejs/adapter-static';
 import { sveltekit } from '@sveltejs/kit/vite';
+import { svelteTesting } from '@testing-library/svelte/vite';
 
 export default defineConfig({
 	plugins: [
@@ -14,7 +15,10 @@ export default defineConfig({
 			},
 			// Static SPA: single fallback page, all routing/rendering happens client-side.
 			adapter: adapter({ fallback: 'index.html' })
-		})
+		}),
+		// Renders Svelte components into jsdom for @testing-library/svelte tests
+		// (resolve.conditions tweak + auto-cleanup between tests). Test-only.
+		svelteTesting()
 	],
 	server: {
 		// Match mphotos-ui: the frontend dev server runs on 3000 and is reached
@@ -26,6 +30,7 @@ export default defineConfig({
 	},
 	test: {
 		environment: 'jsdom',
+		setupFiles: ['src/setupTests.ts'],
 		include: ['src/**/*.{test,spec}.{js,ts}']
 	}
 });

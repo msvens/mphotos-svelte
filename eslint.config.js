@@ -34,8 +34,11 @@ export default defineConfig(
 		}
 	},
 	{
-		// Override or add rule settings here, such as:
-		// 'svelte/button-has-type': 'error'
-		rules: {}
+		rules: {
+			// This app is a static SPA served at the nginx root (no `base` path), so
+			// wrapping internal hrefs in resolve() would be an identity no-op — and it
+			// can't wrap the dynamic nav hrefs. Disable the rule for plain <a href> links.
+			'svelte/no-navigation-without-resolve': 'off'
+		}
 	}
 );
