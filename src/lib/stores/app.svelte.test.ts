@@ -9,9 +9,14 @@ vi.mock('$lib/api/services', () => ({
 	guestsService: { isGuest: vi.fn(), getGuest: vi.fn() }
 }));
 
-const mockUser: User = { name: 'Martin', bio: 'Photographer', pic: '/pic.jpg' };
+const mockUser: User = { name: 'Test User', bio: 'Test bio', pic: '/test-pic.jpg' };
 const serverConfig: Partial<UXConfig> = { photoGridCols: 5, colorTheme: 'light' };
-const mockGuest: Guest = { name: 'Ada', email: 'ada@test.com', verified: true, verifyTime: '' };
+const mockGuest: Guest = {
+	name: 'Test Guest',
+	email: 'guest@example.com',
+	verified: true,
+	verifyTime: ''
+};
 
 beforeEach(() => {
 	vi.mocked(authService.isLoggedIn).mockReset();
