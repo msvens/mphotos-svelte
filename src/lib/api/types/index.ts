@@ -87,11 +87,11 @@ export interface Album {
 
 export interface User {
 	name: string;
-	email: string;
 	bio: string;
-	image: string;
+	pic: string;
 	driveFolderId?: string;
 	driveFolderName?: string;
+	config?: string;
 }
 
 export interface Guest {

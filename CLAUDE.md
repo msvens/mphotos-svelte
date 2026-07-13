@@ -8,7 +8,9 @@ Svelte 5 / SvelteKit. Static SPA (client-rendered), talks to the Go backend
 # Commands
 
 - Gate (run before committing): `pnpm check` # svelte-check + lint + test + build
-- Dev server: `pnpm dev` (needs the Go backend on :8050; Vite proxies `/api` to it)
+- Dev server: `pnpm dev` (frontend on :3000). Reach it through nginx at **:8060**, which
+  routes `/` here and `/api` to the Go backend on :8050 (mirrors mphotos-ui — no Vite /api
+  proxy). Hitting :3000 directly makes `/api` calls fail; the store then falls back to defaults.
 - Build / preview: `pnpm build` · `pnpm preview`
 - Type/component check: `pnpm check:svelte` · Lint: `pnpm lint` · Format: `pnpm format`
 - Test: `pnpm test` (Vitest, jsdom) · watch: `pnpm test:watch`

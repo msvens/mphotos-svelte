@@ -11,28 +11,32 @@ It is a **static SPA** (client-rendered) that talks to the Go `mphotos` backend 
 
 - Node 24 (see `.nvmrc`) and [pnpm](https://pnpm.io)
 - The `mphotos` Go backend running locally on `http://localhost:8050`
+- An nginx reverse proxy on `http://localhost:8060` routing `/` → the frontend
+  dev server (`:3000`) and `/api` → the Go backend (`:8050`) — the same setup
+  `mphotos-ui` uses.
 
 ## Development
 
 ```bash
 pnpm install
-pnpm dev            # starts Vite; /api is proxied to the backend on :8050
+pnpm dev            # frontend dev server on :3000
 ```
 
-Open http://localhost:5173.
+Open **http://localhost:8060** (through nginx). Opening `:3000` directly works for the
+UI, but its `/api` calls will fail (no app-level proxy — nginx handles `/api`).
 
 ## Scripts
 
-| Command             | Description                                    |
-| ------------------- | ---------------------------------------------- |
-| `pnpm dev`          | Dev server (proxies `/api` → `localhost:8050`) |
-| `pnpm build`        | Production build (static SPA → `build/`)       |
-| `pnpm preview`      | Preview the production build                   |
-| `pnpm check`        | CI gate: svelte-check + lint + test + build    |
-| `pnpm check:svelte` | Type/component check (`svelte-check`)          |
-| `pnpm lint`         | Prettier check + ESLint                        |
-| `pnpm format`       | Format with Prettier                           |
-| `pnpm test`         | Unit tests (Vitest + jsdom)                    |
+| Command             | Description                                              |
+| ------------------- | -------------------------------------------------------- |
+| `pnpm dev`          | Frontend dev server on `:3000` (reach via nginx `:8060`) |
+| `pnpm build`        | Production build (static SPA → `build/`)                 |
+| `pnpm preview`      | Preview the production build                             |
+| `pnpm check`        | CI gate: svelte-check + lint + test + build              |
+| `pnpm check:svelte` | Type/component check (`svelte-check`)                    |
+| `pnpm lint`         | Prettier check + ESLint                                  |
+| `pnpm format`       | Format with Prettier                                     |
+| `pnpm test`         | Unit tests (Vitest + jsdom)                              |
 
 ## Tech stack
 
