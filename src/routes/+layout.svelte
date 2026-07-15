@@ -3,6 +3,8 @@
 	import './layout.css';
 	import favicon from '$lib/assets/favicon.svg';
 	import { setAppState } from '$lib/stores/app.svelte';
+	import Navbar from '$lib/components/Navbar.svelte';
+	import Footer from '$lib/components/Footer.svelte';
 
 	let { children } = $props();
 
@@ -17,4 +19,13 @@
 </script>
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
-{@render children()}
+
+<div class="flex min-h-screen flex-col">
+	<Navbar />
+	<div class="flex-grow">
+		<main class="mx-auto w-full px-4">
+			{@render children()}
+		</main>
+	</div>
+	<Footer />
+</div>

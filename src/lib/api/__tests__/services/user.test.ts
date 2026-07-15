@@ -14,9 +14,9 @@ vi.mock('../../../api/client', () => ({
 }));
 
 const mockUser = {
-	name: 'Martin',
-	bio: 'Photographer',
-	pic: '/pic.jpg'
+	name: 'Test User',
+	bio: 'Test bio',
+	pic: '/test-pic.jpg'
 };
 const mockConfig = { columns: 3, spacing: 4, photoPath: '/photos', thumbPath: '/thumbs' };
 
@@ -47,11 +47,11 @@ describe('userService', () => {
 
 	it('updateUser sends name, bio, and pic', async () => {
 		vi.mocked(api.put).mockResolvedValue(mockUser);
-		await userService.updateUser('Martin', 'Photographer', '/pic.jpg');
+		await userService.updateUser('Test User', 'Test bio', '/test-pic.jpg');
 		expect(api.put).toHaveBeenCalledWith(API_ENDPOINTS.user, {
-			name: 'Martin',
-			bio: 'Photographer',
-			pic: '/pic.jpg'
+			name: 'Test User',
+			bio: 'Test bio',
+			pic: '/test-pic.jpg'
 		});
 	});
 

@@ -107,16 +107,17 @@ export class AppState {
 	}
 }
 
-const APP_KEY = Symbol('app-state');
+/** Context key for the app state. Exported so tests can inject a controlled instance. */
+export const APP_STATE_KEY = Symbol('app-state');
 
 /** Create the app state and put it in context. Call once, in the root layout. */
 export function setAppState(): AppState {
 	const state = new AppState();
-	setContext(APP_KEY, state);
+	setContext(APP_STATE_KEY, state);
 	return state;
 }
 
 /** Read the app state from context. Call during component initialization. */
 export function getAppState(): AppState {
-	return getContext<AppState>(APP_KEY);
+	return getContext<AppState>(APP_STATE_KEY);
 }
