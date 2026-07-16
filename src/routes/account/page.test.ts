@@ -9,8 +9,18 @@ vi.mock('$app/state', () => ({ page: { url: new URL('http://localhost/account') 
 vi.mock('$app/navigation', () => ({ replaceState: vi.fn() }));
 vi.mock('$lib/api/services', () => ({
 	authService: { getAuthMethod: vi.fn().mockResolvedValue('google'), isLoggedIn: vi.fn() },
-	userService: { getUser: vi.fn(), getUserConfig: vi.fn(), updateUser: vi.fn() },
-	guestsService: { isGuest: vi.fn(), getGuest: vi.fn() }
+	userService: {
+		getUser: vi.fn(),
+		getUserConfig: vi.fn(),
+		updateUser: vi.fn(),
+		updateUserConfig: vi.fn()
+	},
+	guestsService: { isGuest: vi.fn(), getGuest: vi.fn() },
+	photosService: {
+		getPhotos: vi.fn().mockResolvedValue({ length: 0, photos: [] }),
+		deletePhotos: vi.fn()
+	},
+	albumsService: { getAlbums: vi.fn().mockResolvedValue([]) }
 }));
 
 beforeEach(() => vi.clearAllMocks());
@@ -49,6 +59,17 @@ describe('account page gating', () => {
 		}
 		// Profile is the default section. Match the heading, not the menu button of the same name.
 		expect(screen.getByRole('heading', { name: 'Profile' })).toBeInTheDocument();
+	});
+
+	it('renders the UX Config section when selected', async () => {
+		renderWithApp(Account, {
+			state: state({ loading: false, isUser: true, user: { name: 'Test User', bio: '', pic: '' } })
+		});
+
+		await fireEvent.click(screen.getByRole('button', { name: 'UX Config' }));
+
+		expect(await screen.findByLabelText('Grid Columns')).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'SAVE CONFIG' })).toBeInTheDocument();
 	});
 
 	it('still shows a placeholder for sections that are not migrated yet', async () => {

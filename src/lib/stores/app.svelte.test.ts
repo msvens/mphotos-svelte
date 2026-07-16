@@ -5,7 +5,7 @@ import type { User, UXConfig, Guest } from '$lib/api/types';
 
 vi.mock('$lib/api/services', () => ({
 	authService: { isLoggedIn: vi.fn(), login: vi.fn(), logout: vi.fn() },
-	userService: { getUser: vi.fn(), getUserConfig: vi.fn() },
+	userService: { getUser: vi.fn(), getUserConfig: vi.fn(), updateUserConfig: vi.fn() },
 	guestsService: { isGuest: vi.fn(), getGuest: vi.fn() }
 }));
 
@@ -24,6 +24,7 @@ beforeEach(() => {
 	vi.mocked(authService.logout).mockReset();
 	vi.mocked(userService.getUser).mockReset();
 	vi.mocked(userService.getUserConfig).mockReset();
+	vi.mocked(userService.updateUserConfig).mockReset();
 	vi.mocked(guestsService.isGuest).mockReset();
 	vi.mocked(guestsService.getGuest).mockReset();
 });
@@ -110,6 +111,59 @@ describe('AppState.login / logout', () => {
 
 		expect(app.isUser).toBe(false);
 		expect(app.user).toEqual(defaultUser);
+	});
+});
+
+describe('AppState.updateUXConfig', () => {
+	const newConfig: UXConfig = { ...defaultUXConfig, photoGridCols: 5, colorTheme: 'light' };
+
+	it('sends the config as given', async () => {
+		vi.mocked(userService.updateUserConfig).mockResolvedValue(mockUser);
+
+		const app = new AppState();
+		await app.updateUXConfig(newConfig);
+
+		expect(userService.updateUserConfig).toHaveBeenCalledWith(newConfig);
+	});
+
+	it('adopts the config that was sent, not the response', async () => {
+		// The endpoint resolves a User; adopting it would poison uxConfig.
+		vi.mocked(userService.updateUserConfig).mockResolvedValue(mockUser);
+
+		const app = new AppState();
+		await app.updateUXConfig(newConfig);
+
+		expect(app.uxConfig).toEqual(newConfig);
+		expect(app.uxConfig).not.toHaveProperty('name');
+	});
+
+	it('fills gaps from the defaults', async () => {
+		vi.mocked(userService.updateUserConfig).mockResolvedValue(mockUser);
+
+		const app = new AppState();
+		await app.updateUXConfig({ photoGridCols: 7 } as UXConfig);
+
+		expect(app.uxConfig).toEqual({ ...defaultUXConfig, photoGridCols: 7 });
+	});
+
+	it('throws and leaves uxConfig untouched when the save fails', async () => {
+		vi.mocked(userService.updateUserConfig).mockRejectedValue(new Error('nope'));
+
+		const app = new AppState();
+		await expect(app.updateUXConfig(newConfig)).rejects.toThrow('nope');
+
+		expect(app.uxConfig).toEqual(defaultUXConfig);
+	});
+
+	it('does not refetch auth — one request is enough', async () => {
+		vi.mocked(userService.updateUserConfig).mockResolvedValue(mockUser);
+
+		const app = new AppState();
+		await app.updateUXConfig(newConfig);
+
+		expect(authService.isLoggedIn).not.toHaveBeenCalled();
+		expect(userService.getUser).not.toHaveBeenCalled();
+		expect(userService.getUserConfig).not.toHaveBeenCalled();
 	});
 });
 

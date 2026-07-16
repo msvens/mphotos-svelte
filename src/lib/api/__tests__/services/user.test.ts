@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { api } from '../../../api/client';
 import { userService } from '../../../api/services/user';
 import { API_ENDPOINTS } from '../../../api/config';
+import type { UXConfig } from '../../../api/types';
 
 vi.mock('../../../api/client', () => ({
 	api: {
@@ -18,7 +19,19 @@ const mockUser = {
 	bio: 'Test bio',
 	pic: '/test-pic.jpg'
 };
-const mockConfig = { columns: 3, spacing: 4, photoPath: '/photos', thumbPath: '/thumbs' };
+const mockConfig: UXConfig = {
+	photoStreamAlbumId: '',
+	photoGridCols: 3,
+	photoItemsLoad: 30,
+	photoGridSpacing: 0,
+	showBio: true,
+	photoBackgroundColor: '#121212',
+	photoBorders: 'none',
+	colorTheme: 'dark',
+	denseTopBar: false,
+	denseBottomBar: false,
+	windowFullScreen: false
+};
 
 describe('userService', () => {
 	beforeEach(() => {
@@ -39,10 +52,13 @@ describe('userService', () => {
 		expect(api.get).toHaveBeenCalledWith(API_ENDPOINTS.userConfig);
 	});
 
-	it('updateUserConfig sends PUT with config', async () => {
-		vi.mocked(api.put).mockResolvedValue(mockConfig);
-		await userService.updateUserConfig(mockConfig as never);
+	it('updateUserConfig sends PUT with config and resolves the updated user', async () => {
+		// The backend stores the config as an opaque blob on the user row and echoes the
+		// row back — so this resolves a User, not the config that was sent.
+		vi.mocked(api.put).mockResolvedValue(mockUser);
+		const result = await userService.updateUserConfig(mockConfig);
 		expect(api.put).toHaveBeenCalledWith(API_ENDPOINTS.userConfig, mockConfig);
+		expect(result).toEqual(mockUser);
 	});
 
 	it('updateUser sends name, bio, and pic', async () => {
