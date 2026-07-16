@@ -5,8 +5,8 @@
 	import { getAppState } from '$lib/stores/app.svelte';
 	import { authService, type AuthMethod } from '$lib/api/services';
 	import { API_ENDPOINTS } from '$lib/api/config';
-	import Divider from '$lib/components/Divider.svelte';
-	import Button from '$lib/components/Button.svelte';
+	import Divider from '$lib/components/ui/Divider.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
 
 	const app = getAppState();
 

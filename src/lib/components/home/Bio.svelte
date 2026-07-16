@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getAppState } from '$lib/stores/app.svelte';
-	import Button from './Button.svelte';
-	import ProfileIcon from './ProfileIcon.svelte';
+	import Button from '../ui/Button.svelte';
+	import ProfileIcon from '../ui/ProfileIcon.svelte';
 
 	const app = getAppState();
 
