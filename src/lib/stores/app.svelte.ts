@@ -1,14 +1,18 @@
 import { getContext, setContext } from 'svelte';
 import { authService, userService, guestsService } from '$lib/api/services';
 import type { User, Guest, UXConfig } from '$lib/api/types';
+import { Colors } from '$lib/colors';
 
 export const defaultUXConfig: UXConfig = {
 	photoStreamAlbumId: '',
 	photoGridCols: 3,
 	photoItemsLoad: 30,
-	photoGridSpacing: 1,
+	// 0 ("None") is the only sensible default: the UX Config dropdown offers 0/5/10/15,
+	// so any other value renders as unset. mphotos-web used 0; the 1 came in with the
+	// Next.js port and renders a meaningless 0.1rem gap.
+	photoGridSpacing: 0,
 	showBio: true,
-	photoBackgroundColor: '#121212', // Match dark theme background
+	photoBackgroundColor: Colors.Black,
 	photoBorders: 'none',
 	colorTheme: 'dark',
 	denseTopBar: false,
@@ -96,6 +100,14 @@ export class AppState {
 			this.user = defaultUser;
 			this.isUser = false;
 		}
+	}
+
+	/** Save UX config and adopt it locally. Throws on failure. */
+	async updateUXConfig(config: UXConfig) {
+		await userService.updateUserConfig(config);
+		// Adopt what we sent, not what came back: the endpoint echoes the updated *User*,
+		// not the config. The backend stores the payload verbatim, so this is the truth.
+		this.uxConfig = { ...defaultUXConfig, ...config };
 	}
 
 	/** One-shot initial load; safe to call more than once. */

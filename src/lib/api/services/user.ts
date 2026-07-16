@@ -7,7 +7,12 @@ export interface UserService {
 
 	getUserConfig(): Promise<UXConfig>;
 
-	updateUserConfig(config: UXConfig): Promise<UXConfig>;
+	/**
+	 * Store the UX config. Returns the updated **User** — the backend persists the
+	 * config as an opaque blob on the user row and echoes the row back, not the config.
+	 * Callers wanting the new config should use what they sent.
+	 */
+	updateUserConfig(config: UXConfig): Promise<User>;
 
 	updateUser(name: string, bio: string, pic: string): Promise<User>;
 
@@ -25,8 +30,8 @@ export const userService: UserService = {
 		return api.get<UXConfig>(API_ENDPOINTS.userConfig);
 	},
 
-	async updateUserConfig(config: UXConfig): Promise<UXConfig> {
-		return api.put<UXConfig>(API_ENDPOINTS.userConfig, config);
+	async updateUserConfig(config: UXConfig): Promise<User> {
+		return api.put<User>(API_ENDPOINTS.userConfig, config);
 	},
 
 	async updateUser(name: string, bio: string, pic: string) {

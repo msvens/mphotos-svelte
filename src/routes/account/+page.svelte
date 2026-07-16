@@ -6,6 +6,7 @@
 	import Logout from '$lib/components/account/Logout.svelte';
 	import Profile from '$lib/components/account/Profile.svelte';
 	import Maintenance from '$lib/components/account/Maintenance.svelte';
+	import UxConfig from '$lib/components/account/UxConfig.svelte';
 
 	const app = getAppState();
 
@@ -48,6 +49,8 @@
 		<div class="flex-1 pl-4 pr-8">
 			{#if active === PROFILE}
 				<Profile />
+			{:else if active === UXCONFIG}
+				<UxConfig />
 			{:else if active === MAINTENANCE}
 				<Maintenance />
 			{:else if active === LOGOUT}
