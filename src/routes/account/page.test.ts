@@ -1,15 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { screen } from '@testing-library/svelte';
+import { screen, fireEvent } from '@testing-library/svelte';
 import { AppState } from '$lib/stores/app.svelte';
 import { renderWithApp } from '$lib/test-utils';
 import Account from './+page.svelte';
 
-// Account renders <Login/>, which imports these.
+// Account renders <Login/> and the migrated sections, which import these.
 vi.mock('$app/state', () => ({ page: { url: new URL('http://localhost/account') } }));
 vi.mock('$app/navigation', () => ({ replaceState: vi.fn() }));
 vi.mock('$lib/api/services', () => ({
-	authService: { getAuthMethod: vi.fn().mockResolvedValue('google') },
-	userService: { getUser: vi.fn(), getUserConfig: vi.fn() },
+	authService: { getAuthMethod: vi.fn().mockResolvedValue('google'), isLoggedIn: vi.fn() },
+	userService: { getUser: vi.fn(), getUserConfig: vi.fn(), updateUser: vi.fn() },
 	guestsService: { isGuest: vi.fn(), getGuest: vi.fn() }
 }));
 
@@ -32,7 +32,7 @@ describe('account page gating', () => {
 		expect(await screen.findByText('Login to edit settings')).toBeInTheDocument();
 	});
 
-	it('shows the SideMenu dashboard when logged in, with placeholders for unmigrated sections', () => {
+	it('shows the SideMenu dashboard when logged in', () => {
 		renderWithApp(Account, {
 			state: state({ loading: false, isUser: true, user: { name: 'Test User', bio: '', pic: '' } })
 		});
@@ -47,7 +47,18 @@ describe('account page gating', () => {
 		]) {
 			expect(screen.getByRole('button', { name })).toBeInTheDocument();
 		}
-		// default section (Profile) is a placeholder
+		// Profile is the default section. Match the heading, not the menu button of the same name.
+		expect(screen.getByRole('heading', { name: 'Profile' })).toBeInTheDocument();
+	});
+
+	it('still shows a placeholder for sections that are not migrated yet', async () => {
+		renderWithApp(Account, {
+			state: state({ loading: false, isUser: true, user: { name: 'Test User', bio: '', pic: '' } })
+		});
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Google Drive' }));
+
+		expect(screen.getByRole('heading', { name: 'Google Drive' })).toBeInTheDocument();
 		expect(screen.getByText('This section has not been migrated yet.')).toBeInTheDocument();
 	});
 });
