@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { getAppState } from '$lib/stores/app.svelte';
-	import Button from '$lib/components/Button.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
 
 	const app = getAppState();
 

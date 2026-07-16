@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getAppState } from '$lib/stores/app.svelte';
-	import PageSpacing from '$lib/components/PageSpacing.svelte';
-	import SideMenu, { type MenuItem } from '$lib/components/SideMenu.svelte';
+	import PageSpacing from '$lib/components/layout/PageSpacing.svelte';
+	import SideMenu, { type MenuItem } from '$lib/components/ui/SideMenu.svelte';
 	import Login from '$lib/components/account/Login.svelte';
 	import Logout from '$lib/components/account/Logout.svelte';
 

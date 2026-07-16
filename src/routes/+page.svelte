@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { getAppState } from '$lib/stores/app.svelte';
-	import PageSpacing from '$lib/components/PageSpacing.svelte';
-	import Bio from '$lib/components/Bio.svelte';
+	import PageSpacing from '$lib/components/layout/PageSpacing.svelte';
+	import Bio from '$lib/components/home/Bio.svelte';
 
 	const app = getAppState();
 </script>

@@ -3,8 +3,8 @@
 	import { Icon, Bars3 } from 'svelte-hero-icons';
 	import { getAppState } from '$lib/stores/app.svelte';
 	import { navigation, isActiveRoute } from './nav';
-	import IconButton from './IconButton.svelte';
-	import Logo from './Logo.svelte';
+	import IconButton from '../ui/IconButton.svelte';
+	import Logo from '../ui/Logo.svelte';
 
 	const app = getAppState();
 

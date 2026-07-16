@@ -1,5 +1,5 @@
 <script lang="ts">
-	import PageSpacing from '$lib/components/PageSpacing.svelte';
+	import PageSpacing from '$lib/components/layout/PageSpacing.svelte';
 </script>
 
 <PageSpacing />
