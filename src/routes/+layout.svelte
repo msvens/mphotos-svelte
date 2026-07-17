@@ -4,14 +4,16 @@
 	import favicon from '$lib/assets/favicon.svg';
 	import { setAppState } from '$lib/stores/app.svelte';
 	import { setToastState } from '$lib/stores/toast.svelte';
+	import { setPhotoState } from '$lib/stores/photos.svelte';
 	import Navbar from '$lib/components/layout/Navbar.svelte';
 	import Footer from '$lib/components/layout/Footer.svelte';
-	import ToastContainer from '$lib/components/ui/ToastContainer.svelte';
+	import ToastContainer from '$lib/components/ui/toast/ToastContainer.svelte';
 
 	let { children } = $props();
 
 	const app = setAppState();
 	setToastState();
+	setPhotoState();
 
 	onMount(() => app.init());
 
