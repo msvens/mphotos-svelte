@@ -25,7 +25,15 @@
 
 <svelte:head><link rel="icon" href={favicon} /></svelte:head>
 
-<div class="flex min-h-screen flex-col">
+<!--
+	--nav-height mirrors Navbar's box model (py-* + h-* row + 1px border): 65px normal,
+	49px dense. The sticky nav clears content itself; this var is only for the two overlays
+	that still need the number — the mobile drawer and the deck's min-height.
+-->
+<div
+	class="flex min-h-screen flex-col"
+	style="--nav-height: {app.uxConfig.denseTopBar ? '49px' : '65px'}"
+>
 	<Navbar />
 	<div class="flex-grow">
 		<main class="mx-auto w-full px-4">

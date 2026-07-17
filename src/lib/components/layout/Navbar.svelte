@@ -13,14 +13,15 @@
 	// Dense mode: smaller height and icon size
 	let isDense = $derived(app.uxConfig.denseTopBar);
 	let navHeight = $derived(isDense ? 'h-10' : 'h-12'); // 40px vs 48px
-	let iconSize: 'medium' | 'large' = $derived(isDense ? 'medium' : 'large'); // passed to IconButton
+	// 'nav' (48px) fills the h-12 row exactly; 'medium' (40px) fills the dense h-10 row.
+	let iconSize: 'medium' | 'nav' = $derived(isDense ? 'medium' : 'nav');
 	let mobileIconSize = $derived(isDense ? 'w-6 h-6' : 'w-8 h-8');
 	let paddingY = $derived(isDense ? 'py-1' : 'py-2');
 	let logoSize = $derived(isDense ? 'w-8 h-8' : 'w-10 h-10');
 </script>
 
 <nav
-	class="fixed left-0 right-0 top-0 z-50 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-dark-bg"
+	class="sticky top-0 z-50 border-b border-gray-200 bg-white dark:border-gray-700 dark:bg-dark-bg"
 >
 	<div class="mx-auto max-w-full px-1 {paddingY}">
 		<div class="flex justify-between {navHeight}">
@@ -82,9 +83,7 @@
 
 	<!-- Mobile menu -->
 	<div
-		class="fixed {isDense ? 'top-10' : 'top-12'} right-0 {isDense
-			? 'h-[calc(100vh-40px)]'
-			: 'h-[calc(100vh-48px)]'} z-50 w-56 border-l border-gray-200 bg-white shadow-lg transition-all duration-200 ease-in-out dark:border-gray-700 dark:bg-dark-bg md:hidden {menuOpen
+		class="fixed right-0 top-[var(--nav-height)] z-50 h-[calc(100dvh-var(--nav-height))] w-56 border-l border-gray-200 bg-white shadow-lg transition-all duration-200 ease-in-out dark:border-gray-700 dark:bg-dark-bg md:hidden {menuOpen
 			? 'translate-x-0 opacity-100'
 			: 'pointer-events-none translate-x-4 opacity-0'}"
 	>

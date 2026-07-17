@@ -20,7 +20,7 @@
 	);
 </script>
 
-<PageSpacing height="no_spacing" />
+<PageSpacing height="none" />
 
 {#if app.loading || photoState.loading}
 	<div class="flex h-[80vh] items-center justify-center">
