@@ -264,7 +264,7 @@
 		</div>
 	</div>
 {:else}
-	<div class="flex min-h-[calc(100vh-48px)] flex-col">
+	<div class="flex min-h-[calc(100dvh-var(--nav-height))] flex-col">
 		<div
 			class="relative flex items-center justify-center"
 			style="background-color: {cs.backgroundColor}; width: 100vw; margin-left: calc(-50vw + 50%); padding-left: {padding.left}; padding-right: {padding.right}; padding-top: {padding.top}; padding-bottom: {padding.bottom}; min-height: {viewport.isMobile
