@@ -1,3 +1,7 @@
+<!--
+	One notification. Internal to <ToastContainer /> — nothing else should import it.
+	To raise a toast, call `getToastState().success(…)` and the container renders it.
+-->
 <script lang="ts">
 	import {
 		Icon,

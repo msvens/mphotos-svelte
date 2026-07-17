@@ -1,3 +1,7 @@
+<!--
+	This folder's entry point: the toast stack. Mount it once, in the root layout —
+	callers raise toasts through the store, never by rendering <Toast /> themselves.
+-->
 <script lang="ts">
 	import { getToastState } from '$lib/stores/toast.svelte';
 	import Toast from './Toast.svelte';
