@@ -11,6 +11,11 @@
 		disabled?: boolean;
 		title?: string;
 		tooltipPlacement?: TooltipPlacement;
+		/**
+		 * Accessible name. Defaults to `title`; set it for controls that need a name but
+		 * no tooltip, since the icon alone leaves the button unlabelled.
+		 */
+		ariaLabel?: string;
 		class?: string;
 		iconClass?: string;
 		background?: string; // Optional background color (e.g., 'rgba(0,0,0,0.5)')
@@ -23,6 +28,7 @@
 		disabled = false,
 		title,
 		tooltipPlacement,
+		ariaLabel,
 		class: cls = '',
 		iconClass = '',
 		background
@@ -48,8 +54,10 @@
 
 {#snippet button()}
 	<button
+		type="button"
 		{onclick}
 		{disabled}
+		aria-label={ariaLabel ?? title}
 		style={background ? `background-color: ${background}` : undefined}
 		class={`flex items-center justify-center rounded-full disabled:cursor-not-allowed disabled:opacity-50 ${hoverClasses} transition-all duration-150 ${buttonSize} ${cls}`}
 	>

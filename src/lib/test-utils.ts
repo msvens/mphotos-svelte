@@ -1,8 +1,27 @@
 import { render, type SvelteComponentOptions } from '@testing-library/svelte';
+import { vi } from 'vitest';
 import type { Component } from 'svelte';
 import { AppState, APP_STATE_KEY } from '$lib/stores/app.svelte';
 import { ToastState, TOAST_STATE_KEY } from '$lib/stores/toast.svelte';
 import { PhotoState, PHOTO_STATE_KEY } from '$lib/stores/photos.svelte';
+
+/**
+ * Pretend the viewport is a phone and/or in portrait. Call **before** `render` —
+ * `MediaQuery` reads `matchMedia` when it's constructed, which is at mount.
+ *
+ * `setupTests.ts` installs a stub that matches nothing (desktop, landscape); this
+ * replaces it for one test.
+ */
+export function setViewport({ mobile = false, portrait = false } = {}) {
+	vi.stubGlobal('matchMedia', (query: string) => ({
+		matches: query.includes('orientation: portrait') ? portrait : mobile,
+		media: query,
+		onchange: null,
+		addEventListener: () => {},
+		removeEventListener: () => {},
+		dispatchEvent: () => false
+	}));
+}
 
 /**
  * Render a component that reads any of the app stores, injecting controlled instances
