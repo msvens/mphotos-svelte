@@ -27,10 +27,18 @@ vi.mock('$lib/api/services', () => ({
 		registerGuest: vi.fn(),
 		updateGuest: vi.fn()
 	},
-	albumsService: { getAlbumPhotos: vi.fn(), addAlbumPhotos: vi.fn(), deleteAlbumPhotos: vi.fn() },
+	albumsService: {
+		getAlbumPhotos: vi.fn(),
+		addAlbumPhotos: vi.fn(),
+		deleteAlbumPhotos: vi.fn(),
+		getAlbums: vi.fn()
+	},
 	photosService: {
 		getPhotos: vi.fn(),
 		deletePhoto: vi.fn(),
+		updatePhoto: vi.fn(),
+		setPhotoAlbums: vi.fn(),
+		getPhotoAlbums: vi.fn(),
 		getPhotoUrl: (id: string) => `/api/images/${id}.jpg`,
 		getPhotoThumbUrl: (id: string) => `/api/thumbs/${id}.jpg`,
 		getPortraitUrl: (id: string) => `/api/portraits/${id}.jpg`,
@@ -49,6 +57,8 @@ function photo(id: string, over: Partial<PhotoMetadata> = {}): PhotoMetadata {
 		id,
 		title: `Title ${id}`,
 		fileName: `${id}.jpg`,
+		keywords: '',
+		description: '',
 		width: 3000,
 		height: 2000,
 		...over
@@ -86,6 +96,10 @@ beforeEach(() => {
 		.mockResolvedValue({ name: '', bio: '', pic: '' });
 	vi.mocked(albumsService.addAlbumPhotos).mockReset().mockResolvedValue({ numItems: 1 });
 	vi.mocked(albumsService.deleteAlbumPhotos).mockReset().mockResolvedValue({ numItems: 1 });
+	vi.mocked(albumsService.getAlbums).mockReset().mockResolvedValue([]);
+	vi.mocked(photosService.getPhotoAlbums).mockReset().mockResolvedValue([]);
+	vi.mocked(photosService.updatePhoto).mockReset();
+	vi.mocked(photosService.setPhotoAlbums).mockReset().mockResolvedValue({ numItems: 1 });
 	vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -266,6 +280,32 @@ describe('PhotoDeck', () => {
 		it('are hidden from visitors', () => {
 			renderWithApp(PhotoDeck, { state: appState(), props: { ...base, photoId: 'a' } });
 			expect(screen.queryByRole('button', { name: 'Delete photo' })).toBeNull();
+			expect(screen.queryByRole('button', { name: 'Edit photo metadata' })).toBeNull();
+		});
+
+		it('open the edit dialog from the pencil', async () => {
+			renderWithApp(PhotoDeck, { state: appState(), props: owner });
+
+			await fireEvent.click(screen.getByRole('button', { name: 'Edit photo metadata' }));
+
+			expect(await screen.findByRole('heading', { name: 'Edit Photo' })).toBeInTheDocument();
+		});
+
+		it('push an edited photo into the store', async () => {
+			vi.mocked(photosService.getPhotoAlbums).mockResolvedValue([]);
+			vi.mocked(photosService.updatePhoto).mockResolvedValue(photo('a', { title: 'Renamed' }));
+			const photos = photoStore();
+			const spy = vi.spyOn(photos, 'updatePhoto');
+			renderWithApp(PhotoDeck, { state: appState(), photos, props: owner });
+
+			await fireEvent.click(screen.getByRole('button', { name: 'Edit photo metadata' }));
+			await screen.findByRole('heading', { name: 'Edit Photo' });
+			await fireEvent.input(screen.getByLabelText('Title'), { target: { value: 'Renamed' } });
+			await fireEvent.click(screen.getByRole('button', { name: 'SAVE' }));
+
+			await vi.waitFor(() =>
+				expect(spy).toHaveBeenCalledWith(expect.objectContaining({ title: 'Renamed' }))
+			);
 		});
 
 		it('set the profile picture', async () => {
