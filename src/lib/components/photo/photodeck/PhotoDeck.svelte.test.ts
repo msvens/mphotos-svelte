@@ -291,6 +291,25 @@ describe('PhotoDeck', () => {
 			expect(await screen.findByRole('heading', { name: 'Edit Photo' })).toBeInTheDocument();
 		});
 
+		it('navigate to the crop route from the scissors', async () => {
+			renderWithApp(PhotoDeck, { state: appState(), props: owner });
+
+			await fireEvent.click(screen.getByRole('button', { name: 'Crop & rotate' }));
+
+			expect(goto).toHaveBeenCalledWith('/photo/a/crop');
+		});
+
+		it('bust the image cache after an edit bumps the version', async () => {
+			const photos = photoStore();
+			photos.bumpVersion('a');
+			renderWithApp(PhotoDeck, { state: appState(), photos, props: owner });
+
+			expect(screen.getByAltText('Title a')).toHaveAttribute(
+				'src',
+				expect.stringContaining('?v=1')
+			);
+		});
+
 		it('push an edited photo into the store', async () => {
 			vi.mocked(photosService.getPhotoAlbums).mockResolvedValue([]);
 			vi.mocked(photosService.updatePhoto).mockResolvedValue(photo('a', { title: 'Renamed' }));

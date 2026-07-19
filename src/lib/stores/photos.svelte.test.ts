@@ -242,3 +242,19 @@ describe('PhotoState mutations', () => {
 		expect(s.streamIds.has('a')).toBe(false);
 	});
 });
+
+describe('PhotoState.bumpVersion', () => {
+	it('starts at version 0', () => {
+		expect(new PhotoState().version('a')).toBe(0);
+	});
+
+	it('increments per photo, independently', () => {
+		const s = new PhotoState();
+		s.bumpVersion('a');
+		expect(s.version('a')).toBe(1);
+		expect(s.version('b')).toBe(0);
+
+		s.bumpVersion('a');
+		expect(s.version('a')).toBe(2);
+	});
+});

@@ -1,5 +1,5 @@
 import type { PhotoMetadata, PhotoList, AffectedItems, Album } from '../types';
-import { API_ENDPOINTS } from '../config';
+import { API_ENDPOINTS, createApiUrl } from '../config';
 import { api } from '../client';
 
 export interface EditPhotoParams {
@@ -22,6 +22,7 @@ export interface PhotosService {
 		keywords: string
 	): Promise<PhotoMetadata>;
 	editPhoto(id: string, params: EditPhotoParams): Promise<PhotoMetadata>;
+	getEditPreviewUrl(id: string, params: EditPhotoParams): string;
 	uploadLocalPhoto(file: File): Promise<PhotoMetadata>;
 	deletePhoto(id: string, removeFiles: boolean): Promise<PhotoMetadata>;
 	deletePhotos(removeFiles: boolean): Promise<PhotoList>;
@@ -83,6 +84,19 @@ export const photosService: PhotosService = {
 
 	async editPhoto(id: string, params: EditPhotoParams) {
 		return api.put<PhotoMetadata>(`${API_ENDPOINTS.photo(id)}/edit`, params);
+	},
+
+	getEditPreviewUrl(id: string, params: EditPhotoParams) {
+		// GET endpoint: the server renders the same rotate-then-crop pipeline in memory.
+		return createApiUrl(API_ENDPOINTS.photoEditPreview(id), {
+			params: {
+				rotation: String(params.rotation),
+				x: String(params.x),
+				y: String(params.y),
+				width: String(params.width),
+				height: String(params.height)
+			}
+		});
 	},
 
 	async uploadLocalPhoto(file: File) {

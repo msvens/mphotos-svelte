@@ -131,6 +131,25 @@ describe('photosService', () => {
 		});
 	});
 
+	describe('getEditPreviewUrl', () => {
+		it('builds the preview URL with all five params', () => {
+			const url = photosService.getEditPreviewUrl('p1', {
+				rotation: 5,
+				x: 10,
+				y: 20,
+				width: 300,
+				height: 400
+			});
+			const parsed = new URL(url);
+			expect(parsed.pathname).toBe('/api/photos/p1/edit/preview');
+			expect(parsed.searchParams.get('rotation')).toBe('5');
+			expect(parsed.searchParams.get('x')).toBe('10');
+			expect(parsed.searchParams.get('y')).toBe('20');
+			expect(parsed.searchParams.get('width')).toBe('300');
+			expect(parsed.searchParams.get('height')).toBe('400');
+		});
+	});
+
 	describe('uploadLocalPhoto', () => {
 		it('sends file as FormData', async () => {
 			vi.mocked(api.post).mockResolvedValue(mockPhoto);
