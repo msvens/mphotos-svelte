@@ -6,6 +6,7 @@
 		FaceSmile,
 		BookOpen,
 		ArchiveBox,
+		Pencil,
 		Trash,
 		ArrowsPointingIn,
 		ArrowsPointingOut
@@ -23,6 +24,7 @@
 	import Dialog from '$lib/components/ui/Dialog.svelte';
 	import PhotoLikes from './PhotoLikes.svelte';
 	import PhotoComments from './PhotoComments.svelte';
+	import PhotoEditDialog from './PhotoEditDialog.svelte';
 
 	const IMAGE_CLASSES_DESKTOP =
 		'w-auto h-auto max-h-[calc(100vh-200px)] object-contain transition-all duration-300';
@@ -76,6 +78,7 @@
 	/** Mirrors document.fullscreenElement; drives the toggle's icon only. */
 	let nativeActive = $state(false);
 	let showDeleteDialog = $state(false);
+	let showEditDialog = $state(false);
 
 	let cs = $derived(colorScheme(app.uxConfig.photoBackgroundColor));
 	let controlClass = $derived(cs.color === '#ffffff' ? 'text-white' : 'text-gray-900');
@@ -313,6 +316,14 @@
 						class={controlClass}
 					/>
 					<IconButton
+						icon={Pencil}
+						onclick={() => (showEditDialog = true)}
+						title="Edit photo metadata"
+						tooltipPlacement="bottom"
+						background={alpha(cs.backgroundColor, 0.5)}
+						class={controlClass}
+					/>
+					<IconButton
 						icon={Trash}
 						onclick={() => (showDeleteDialog = true)}
 						title="Delete photo"
@@ -404,6 +415,14 @@
 			text="By removing the photo all associated image data will be deleted"
 			okText="DELETE"
 			closeText="CANCEL"
+		/>
+		<PhotoEditDialog
+			open={showEditDialog}
+			photo={currentPhoto}
+			onClose={(updated) => {
+				showEditDialog = false;
+				if (updated) photoState.updatePhoto(updated);
+			}}
 		/>
 	{/if}
 {/if}
