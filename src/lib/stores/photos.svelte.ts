@@ -1,5 +1,5 @@
 import { getContext, setContext } from 'svelte';
-import { SvelteSet } from 'svelte/reactivity';
+import { SvelteSet, SvelteMap } from 'svelte/reactivity';
 import { photosService, albumsService } from '$lib/api/services';
 import type { PhotoMetadata, PhotoList } from '$lib/api/types';
 
@@ -23,6 +23,8 @@ export class PhotoState {
 	streamPhotos = $state<PhotoMetadata[]>([]);
 	/** Ids of `streamPhotos`, for O(1) membership tests while rendering. */
 	streamIds = new SvelteSet<string>();
+	/** Cache-bust tokens for edited photos: the server overwrites files at the same URL. */
+	versions = new SvelteMap<string, number>();
 	/** Whether the loaded lists were fetched as the authenticated owner. */
 	isOwnerView = $state(false);
 	loading = $state(true);
@@ -104,6 +106,19 @@ export class PhotoState {
 		this.allPhotos = this.allPhotos.filter(keep);
 		this.streamPhotos = this.streamPhotos.filter(keep);
 		this.streamIds.delete(id);
+	}
+
+	/**
+	 * Mark a photo's rendered files as changed after an edit. Consumers append the returned
+	 * version to the image URL so the browser refetches instead of showing the stale cache.
+	 */
+	bumpVersion(id: string) {
+		this.versions.set(id, (this.versions.get(id) ?? 0) + 1);
+	}
+
+	/** The cache-bust version for a photo, or 0 if it hasn't been edited this session. */
+	version(id: string) {
+		return this.versions.get(id) ?? 0;
 	}
 }
 

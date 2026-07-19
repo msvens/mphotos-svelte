@@ -7,6 +7,7 @@
 		BookOpen,
 		ArchiveBox,
 		Pencil,
+		Scissors,
 		Trash,
 		ArrowsPointingIn,
 		ArrowsPointingOut
@@ -83,6 +84,13 @@
 	let cs = $derived(colorScheme(app.uxConfig.photoBackgroundColor));
 	let controlClass = $derived(cs.color === '#ffffff' ? 'text-white' : 'text-gray-900');
 	let isInPhotostream = $derived(photoState.streamIds.has(currentPhoto?.id ?? ''));
+
+	// After a crop/rotate the server overwrites the file at the same URL, so append the store's
+	// edit version to force a refetch. Untouched photos get no suffix.
+	function withVersion(url: string): string {
+		const v = currentPhoto ? photoState.version(currentPhoto.id) : 0;
+		return v ? `${url}?v=${v}` : url;
+	}
 
 	let padding = $derived.by(() => {
 		// Mobile keeps every pixel for the photo.
@@ -260,7 +268,7 @@
 			{@attach swipe({ onPrevious: goPrevious, onNext: goNext })}
 		>
 			<img
-				src={photosService.getPhotoUrl(currentPhoto.id)}
+				src={withVersion(photosService.getPhotoUrl(currentPhoto.id))}
 				alt={currentPhoto.title || currentPhoto.fileName}
 				class="h-auto max-h-full w-auto max-w-full object-contain"
 			/>
@@ -324,6 +332,14 @@
 						class={controlClass}
 					/>
 					<IconButton
+						icon={Scissors}
+						onclick={() => goto(`/photo/${currentPhoto.id}/crop`)}
+						title="Crop & rotate"
+						tooltipPlacement="bottom"
+						background={alpha(cs.backgroundColor, 0.5)}
+						class={controlClass}
+					/>
+					<IconButton
 						icon={Trash}
 						onclick={() => (showDeleteDialog = true)}
 						title="Delete photo"
@@ -349,10 +365,8 @@
 			     against this flex container — don't collapse it. -->
 			<div class="relative flex w-full items-center justify-center">
 				<img
-					src={photosService.getDynamicImageUrl(
-						currentPhoto,
-						viewport.isPortrait,
-						viewport.isMobile
+					src={withVersion(
+						photosService.getDynamicImageUrl(currentPhoto, viewport.isPortrait, viewport.isMobile)
 					)}
 					alt={currentPhoto.title || currentPhoto.fileName}
 					class={viewport.isMobile ? IMAGE_CLASSES_MOBILE : IMAGE_CLASSES_DESKTOP}

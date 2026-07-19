@@ -18,6 +18,7 @@ export const API_ENDPOINTS = {
 	// Photos
 	photos: '/api/photos',
 	photo: (id: string) => `/api/photos/${id}`,
+	photoEditPreview: (id: string) => `/api/photos/${id}/edit/preview`,
 	photoMetadata: (id: string) => `/api/photos/${id}`,
 	photoFile: (id: string) => `/api/images/${id}.jpg`,
 	photoThumb: (id: string) => `/api/thumbs/${id}.jpg`,
