@@ -70,7 +70,7 @@ describe('camerasService', () => {
 		const file = new File(['img'], 'camera.jpg', { type: 'image/jpeg' });
 		await camerasService.uploadCameraImage('nikon-z6', file);
 		expect(api.post).toHaveBeenCalledWith(
-			API_ENDPOINTS.cameraImage('nikon-z6'),
+			API_ENDPOINTS.cameraImageUpload('nikon-z6'),
 			expect.any(FormData)
 		);
 	});
