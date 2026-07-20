@@ -56,7 +56,8 @@ export const API_ENDPOINTS = {
 	// Camera endpoints
 	cameras: '/api/cameras',
 	camera: (name: string) => `/api/cameras/${name}`,
-	cameraImage: (name: string) => `/api/cameras/${name}/image`
+	cameraImage: (name: string) => `/api/cameras/${name}/image`,
+	cameraImageUpload: (name: string) => `/api/cameras/${name}/image/upload`
 
 	// User endpoints
 	//users: '/api/users',

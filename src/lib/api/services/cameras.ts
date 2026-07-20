@@ -39,7 +39,8 @@ export const camerasService: CamerasService = {
 	async uploadCameraImage(name: string, file: File) {
 		const formData = new FormData();
 		formData.append('cameraImage', file, file.name);
-		return api.post<Camera>(API_ENDPOINTS.cameraImage(name), formData);
+		// The multipart handler is at /image/upload; /image is the JSON URL-update handler.
+		return api.post<Camera>(API_ENDPOINTS.cameraImageUpload(name), formData);
 	},
 
 	async updateCameraImageUrl(name: string, url: string) {
