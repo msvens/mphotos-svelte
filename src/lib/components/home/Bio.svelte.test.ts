@@ -12,7 +12,9 @@ function stateWith(overrides: Partial<AppState>): AppState {
 
 describe('Bio', () => {
 	it('shows the user name and bio', () => {
-		const state = stateWith({ user: { name: 'Test User', bio: 'Test bio text', pic: '' } });
+		const state = stateWith({
+			user: { name: 'Test User', bio: 'Test bio text', pic: '', photoStreamAlbumId: '' }
+		});
 		renderWithApp(Bio, { state });
 		expect(screen.getByRole('heading', { name: 'Test User' })).toBeInTheDocument();
 		expect(screen.getByText('Test bio text')).toBeInTheDocument();
@@ -20,7 +22,7 @@ describe('Bio', () => {
 
 	it('renders the profile image when pic is set', () => {
 		const state = stateWith({
-			user: { name: 'Test User', bio: '', pic: '/test-pic.jpg' }
+			user: { name: 'Test User', bio: '', pic: '/test-pic.jpg', photoStreamAlbumId: '' }
 		});
 		renderWithApp(Bio, { state });
 		const img = screen.getByRole('img', { name: 'Test User' });
@@ -28,7 +30,9 @@ describe('Bio', () => {
 	});
 
 	it('falls back to the ProfileIcon when pic is empty', () => {
-		const state = stateWith({ user: { name: 'Test User', bio: '', pic: '' } });
+		const state = stateWith({
+			user: { name: 'Test User', bio: '', pic: '', photoStreamAlbumId: '' }
+		});
 		const { container } = renderWithApp(Bio, { state });
 		// no <img>, an inline <svg> placeholder instead
 		expect(screen.queryByRole('img')).toBeNull();
@@ -36,12 +40,18 @@ describe('Bio', () => {
 	});
 
 	it('shows the Account button only when the owner is logged in', () => {
-		const loggedOut = stateWith({ isUser: false, user: { name: 'Test User', bio: '', pic: '' } });
+		const loggedOut = stateWith({
+			isUser: false,
+			user: { name: 'Test User', bio: '', pic: '', photoStreamAlbumId: '' }
+		});
 		const { unmount } = renderWithApp(Bio, { state: loggedOut });
 		expect(screen.queryByRole('link', { name: 'Account' })).toBeNull();
 		unmount();
 
-		const loggedIn = stateWith({ isUser: true, user: { name: 'Test User', bio: '', pic: '' } });
+		const loggedIn = stateWith({
+			isUser: true,
+			user: { name: 'Test User', bio: '', pic: '', photoStreamAlbumId: '' }
+		});
 		renderWithApp(Bio, { state: loggedIn });
 		const account = screen.getByRole('link', { name: 'Account' });
 		expect(account).toHaveAttribute('href', '/account');

@@ -69,7 +69,9 @@ const photos = [photo('a'), photo('b'), photo('c')];
 
 function appState(config: Partial<UXConfig> = {}): AppState {
 	const s = new AppState();
-	s.uxConfig = { ...defaultUXConfig, photoStreamAlbumId: 'stream', ...config };
+	s.uxConfig = { ...defaultUXConfig, ...config };
+	// The photostream album is a user property now, not part of the UX-config blob.
+	s.user = { ...s.user, photoStreamAlbumId: 'stream' };
 	s.loading = false;
 	return s;
 }
@@ -77,7 +79,7 @@ function appState(config: Partial<UXConfig> = {}): AppState {
 function photoStore(streamIds: string[] = []): PhotoState {
 	const p = new PhotoState();
 	for (const id of streamIds) p.streamIds.add(id);
-	p.allPhotos = photos;
+	p.photos = photos;
 	p.loading = false;
 	return p;
 }
@@ -93,7 +95,7 @@ beforeEach(() => {
 	vi.mocked(photosService.deletePhoto).mockReset().mockResolvedValue(photo('a'));
 	vi.mocked(userService.updateUserPic)
 		.mockReset()
-		.mockResolvedValue({ name: '', bio: '', pic: '' });
+		.mockResolvedValue({ name: '', bio: '', pic: '', photoStreamAlbumId: '' });
 	vi.mocked(albumsService.addAlbumPhotos).mockReset().mockResolvedValue({ numItems: 1 });
 	vi.mocked(albumsService.deleteAlbumPhotos).mockReset().mockResolvedValue({ numItems: 1 });
 	vi.mocked(albumsService.getAlbums).mockReset().mockResolvedValue([]);

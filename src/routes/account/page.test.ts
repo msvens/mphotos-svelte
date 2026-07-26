@@ -44,7 +44,11 @@ describe('account page gating', () => {
 
 	it('shows the SideMenu dashboard when logged in', () => {
 		renderWithApp(Account, {
-			state: state({ loading: false, isUser: true, user: { name: 'Test User', bio: '', pic: '' } })
+			state: state({
+				loading: false,
+				isUser: true,
+				user: { name: 'Test User', bio: '', pic: '', photoStreamAlbumId: '' }
+			})
 		});
 		// all six menu items present
 		for (const name of [
@@ -63,7 +67,11 @@ describe('account page gating', () => {
 
 	it('renders the UX Config section when selected', async () => {
 		renderWithApp(Account, {
-			state: state({ loading: false, isUser: true, user: { name: 'Test User', bio: '', pic: '' } })
+			state: state({
+				loading: false,
+				isUser: true,
+				user: { name: 'Test User', bio: '', pic: '', photoStreamAlbumId: '' }
+			})
 		});
 
 		await fireEvent.click(screen.getByRole('button', { name: 'UX Config' }));
@@ -74,7 +82,11 @@ describe('account page gating', () => {
 
 	it('still shows a placeholder for sections that are not migrated yet', async () => {
 		renderWithApp(Account, {
-			state: state({ loading: false, isUser: true, user: { name: 'Test User', bio: '', pic: '' } })
+			state: state({
+				loading: false,
+				isUser: true,
+				user: { name: 'Test User', bio: '', pic: '', photoStreamAlbumId: '' }
+			})
 		});
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Google Drive' }));

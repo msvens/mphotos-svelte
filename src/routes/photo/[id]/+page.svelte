@@ -12,7 +12,7 @@
 	// nothing — the list is already in the store.
 	$effect(() => {
 		if (app.loading) return;
-		void photoState.load(app.isUser, app.uxConfig.photoStreamAlbumId);
+		void photoState.load(app.isUser, app.user.photoStreamAlbumId);
 	});
 
 	let searchQuery = $derived(

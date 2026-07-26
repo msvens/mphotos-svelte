@@ -14,6 +14,12 @@ export interface UserService {
 	 */
 	updateUserConfig(config: UXConfig): Promise<User>;
 
+	/**
+	 * Set the photostream album id (owner only). An empty string clears the stream.
+	 * Returns the updated **User** — the backend echoes the whole row.
+	 */
+	updatePhotostream(photoStreamAlbumId: string): Promise<User>;
+
 	updateUser(name: string, bio: string, pic: string): Promise<User>;
 
 	updateUserPic(pic: string): Promise<User>;
@@ -32,6 +38,10 @@ export const userService: UserService = {
 
 	async updateUserConfig(config: UXConfig): Promise<User> {
 		return api.put<User>(API_ENDPOINTS.userConfig, config);
+	},
+
+	async updatePhotostream(photoStreamAlbumId: string): Promise<User> {
+		return api.put<User>(API_ENDPOINTS.userPhotostream, { photoStreamAlbumId });
 	},
 
 	async updateUser(name: string, bio: string, pic: string) {

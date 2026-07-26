@@ -17,10 +17,10 @@ vi.mock('../../../api/client', () => ({
 const mockUser = {
 	name: 'Test User',
 	bio: 'Test bio',
-	pic: '/test-pic.jpg'
+	pic: '/test-pic.jpg',
+	photoStreamAlbumId: ''
 };
 const mockConfig: UXConfig = {
-	photoStreamAlbumId: '',
 	photoGridCols: 3,
 	photoItemsLoad: 30,
 	photoGridSpacing: 0,
@@ -58,6 +58,15 @@ describe('userService', () => {
 		vi.mocked(api.put).mockResolvedValue(mockUser);
 		const result = await userService.updateUserConfig(mockConfig);
 		expect(api.put).toHaveBeenCalledWith(API_ENDPOINTS.userConfig, mockConfig);
+		expect(result).toEqual(mockUser);
+	});
+
+	it('updatePhotostream sends the album id and resolves the updated user', async () => {
+		vi.mocked(api.put).mockResolvedValue(mockUser);
+		const result = await userService.updatePhotostream('album-uuid');
+		expect(api.put).toHaveBeenCalledWith(API_ENDPOINTS.userPhotostream, {
+			photoStreamAlbumId: 'album-uuid'
+		});
 		expect(result).toEqual(mockUser);
 	});
 

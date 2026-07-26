@@ -21,7 +21,7 @@
 	// re-running this costs nothing.
 	$effect(() => {
 		if (app.loading) return;
-		void photoState.load(app.isUser, app.uxConfig.photoStreamAlbumId);
+		void photoState.load(app.isUser, app.user.photoStreamAlbumId);
 	});
 
 	// Both lists are already in memory, so flipping the switch never refetches.
@@ -32,7 +32,7 @@
 		app.isUser && !showPhotostream && !photoState.streamIds.has(photo.id);
 
 	async function toggleStream(photo: PhotoMetadata) {
-		const albumId = app.uxConfig.photoStreamAlbumId;
+		const albumId = app.user.photoStreamAlbumId;
 		if (!albumId) return;
 		try {
 			await photoState.setInStream(albumId, photo, !photoState.streamIds.has(photo.id));
@@ -68,7 +68,7 @@
 			</Section>
 		{/if}
 
-		{#if app.isUser && app.uxConfig.photoStreamAlbumId}
+		{#if app.isUser && app.user.photoStreamAlbumId}
 			<Section>
 				<div class="flex justify-center">
 					<ToggleSwitch bind:checked={showPhotostream} label="Show Photostream" />

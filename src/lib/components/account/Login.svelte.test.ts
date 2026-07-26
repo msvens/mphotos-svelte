@@ -17,7 +17,9 @@ vi.mock('$lib/api/services', () => ({
 		isLoggedIn: vi.fn().mockResolvedValue(true)
 	},
 	userService: {
-		getUser: vi.fn().mockResolvedValue({ name: 'Test User', bio: '', pic: '' }),
+		getUser: vi
+			.fn()
+			.mockResolvedValue({ name: 'Test User', bio: '', pic: '', photoStreamAlbumId: '' }),
 		getUserConfig: vi.fn().mockResolvedValue({})
 	},
 	guestsService: { isGuest: vi.fn().mockResolvedValue(false), getGuest: vi.fn() }
@@ -27,7 +29,12 @@ beforeEach(() => {
 	vi.clearAllMocks();
 	page.url = new URL('http://localhost/account') as unknown as typeof page.url;
 	vi.mocked(authService.login).mockResolvedValue({ authenticated: true });
-	vi.mocked(userService.getUser).mockResolvedValue({ name: 'Test User', bio: '', pic: '' });
+	vi.mocked(userService.getUser).mockResolvedValue({
+		name: 'Test User',
+		bio: '',
+		pic: '',
+		photoStreamAlbumId: ''
+	});
 	vi.mocked(userService.getUserConfig).mockResolvedValue(
 		{} as Awaited<ReturnType<typeof userService.getUserConfig>>
 	);

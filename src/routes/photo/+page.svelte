@@ -14,7 +14,7 @@
 		if (app.loading) return;
 		let cancelled = false;
 		(async () => {
-			await photoState.load(app.isUser, app.uxConfig.photoStreamAlbumId);
+			await photoState.load(app.isUser, app.user.photoStreamAlbumId);
 			if (cancelled) return;
 			const first = photoState.photos[0];
 			if (first) await goto(`/photo/${first.id}`, { replaceState: true });

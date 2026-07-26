@@ -1,15 +1,13 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
-	import { camerasService } from '$lib/api/services';
+	import { camerasService, photosService } from '$lib/api/services';
 	import { getAppState } from '$lib/stores/app.svelte';
-	import { getPhotoState } from '$lib/stores/photos.svelte';
-	import type { Camera } from '$lib/api/types';
+	import type { Camera, PhotoMetadata } from '$lib/api/types';
 	import PageSpacing from '$lib/components/layout/PageSpacing.svelte';
 	import PhotoGrid from '$lib/components/photo/PhotoGrid.svelte';
 
 	const app = getAppState();
-	const photoState = getPhotoState();
 
 	let cameras = $state<Camera[]>([]);
 	let camerasLoading = $state(true);
@@ -24,22 +22,31 @@
 		}
 	});
 
-	// Reuse the site's photo lists (owner → all, guest → photostream album, so private albums
-	// stay out) and filter to this camera's model — the same client-side filter the React app does.
-	$effect(() => {
-		if (app.loading) return;
-		void photoState.load(app.isUser, app.uxConfig.photoStreamAlbumId);
-	});
-
 	let camera = $derived(cameras.find((c) => c.id === page.params.id) ?? null);
-	let photos = $derived(
-		camera ? photoState.photos.filter((p) => p.cameraModel === camera.model) : []
-	);
+
+	// Filtering is server-side: `GET /api/photos?cameraModel=` is session-aware (owner → all
+	// matches, guest → matches within the photostream), so no client-side filter or isUser branch.
+	let photos = $state<PhotoMetadata[]>([]);
+	let photosLoading = $state(true);
+
+	$effect(() => {
+		const model = camera?.model;
+		if (!model) return;
+		let cancelled = false;
+		photosLoading = true;
+		(async () => {
+			const result = await photosService.getPhotosByCameraModel(model);
+			if (cancelled) return;
+			photos = result.photos;
+			photosLoading = false;
+		})();
+		return () => (cancelled = true);
+	});
 </script>
 
 <PageSpacing />
 
-{#if camerasLoading || app.loading || photoState.loading}
+{#if camerasLoading || (camera && photosLoading)}
 	<div class="flex min-h-[calc(100vh-200px)] items-center justify-center">
 		<div class="animate-pulse text-gray-400">Loading...</div>
 	</div>
