@@ -161,7 +161,7 @@
 	}
 
 	async function togglePhotostream() {
-		const albumId = app.uxConfig.photoStreamAlbumId;
+		const albumId = app.user.photoStreamAlbumId;
 		if (!currentPhoto || !albumId) {
 			toast.error('Photostream album not configured');
 			return;

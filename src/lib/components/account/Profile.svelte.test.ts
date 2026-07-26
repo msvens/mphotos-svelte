@@ -13,7 +13,12 @@ vi.mock('$lib/api/services', () => ({
 	guestsService: { isGuest: vi.fn(), getGuest: vi.fn() }
 }));
 
-const savedUser: User = { name: 'Martin', bio: 'Photographer', pic: '/me.jpg' };
+const savedUser: User = {
+	name: 'Martin',
+	bio: 'Photographer',
+	pic: '/me.jpg',
+	photoStreamAlbumId: ''
+};
 
 /** An AppState already populated, as it would be behind the page's loading gate. */
 function loggedInState(user: Partial<User> = {}): AppState {

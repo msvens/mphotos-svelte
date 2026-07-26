@@ -14,7 +14,7 @@ beforeEach(() => vi.mocked(authService.logout).mockClear());
 function loggedInState(): AppState {
 	const s = new AppState();
 	s.isUser = true;
-	s.user = { name: 'Test User', bio: '', pic: '' };
+	s.user = { name: 'Test User', bio: '', pic: '', photoStreamAlbumId: '' };
 	return s;
 }
 

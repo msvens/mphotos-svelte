@@ -26,10 +26,10 @@ function photo(id: string): PhotoMetadata {
 
 const list = (...ids: string[]): PhotoList => ({ length: ids.length, photos: ids.map(photo) });
 
-function state(isUser: boolean, config: Partial<UXConfig> = {}): AppState {
+function state(isUser: boolean, album = ALBUM, config: Partial<UXConfig> = {}): AppState {
 	const s = new AppState();
-	s.uxConfig = { ...defaultUXConfig, photoStreamAlbumId: ALBUM, showBio: false, ...config };
-	s.user = { name: 'Martin', bio: '', pic: '' };
+	s.uxConfig = { ...defaultUXConfig, showBio: false, ...config };
+	s.user = { name: 'Martin', bio: '', pic: '', photoStreamAlbumId: album };
 	s.isUser = isUser;
 	s.loading = false;
 	return s;
@@ -55,10 +55,15 @@ describe('home page', () => {
 	});
 
 	describe('as a guest', () => {
+		// A guest's public `/api/photos` already returns the photostream members.
+		beforeEach(() => {
+			vi.mocked(photosService.getPhotos).mockResolvedValue(list('a'));
+		});
+
 		it('shows only the photostream', async () => {
 			renderWithApp(Home, { state: state(false) });
 			await vi.waitFor(() => expect(tiles()).toEqual(['/photo/a']));
-			expect(photosService.getPhotos).not.toHaveBeenCalled();
+			expect(albumsService.getAlbumPhotos).not.toHaveBeenCalled();
 		});
 
 		it('offers no overlay bar at all', async () => {
@@ -131,7 +136,7 @@ describe('home page', () => {
 		});
 
 		it('hides the switch when no photostream album is configured', async () => {
-			renderWithApp(Home, { state: state(true, { photoStreamAlbumId: '' }) });
+			renderWithApp(Home, { state: state(true, '') });
 			await vi.waitFor(() => expect(tiles()).toHaveLength(3));
 			expect(screen.queryByLabelText('Show Photostream')).toBeNull();
 		});
@@ -189,8 +194,12 @@ describe('home page', () => {
 	});
 
 	describe('bio', () => {
+		beforeEach(() => {
+			vi.mocked(photosService.getPhotos).mockResolvedValue(list('a'));
+		});
+
 		it('is shown when configured', async () => {
-			renderWithApp(Home, { state: state(false, { showBio: true }) });
+			renderWithApp(Home, { state: state(false, ALBUM, { showBio: true }) });
 			await vi.waitFor(() => expect(screen.getByRole('separator')).toBeInTheDocument());
 		});
 

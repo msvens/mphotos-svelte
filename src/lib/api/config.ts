@@ -14,6 +14,7 @@ export const API_ENDPOINTS = {
 	userConfig: '/api/user/config',
 	userPic: '/api/user/pic',
 	userGDrive: '/api/user/gdrive',
+	userPhotostream: '/api/user/photostream',
 
 	// Photos
 	photos: '/api/photos',

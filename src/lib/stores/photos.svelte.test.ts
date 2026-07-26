@@ -27,6 +27,8 @@ function deferred<T>() {
 }
 
 beforeEach(() => {
+	// `GET /api/photos` is public and session-aware: the owner gets everything, a guest gets
+	// the photostream. The default here is the owner's view; guest tests override it.
 	vi.mocked(photosService.getPhotos)
 		.mockReset()
 		.mockResolvedValue(list('a', 'b', 'c'));
@@ -49,17 +51,17 @@ describe('PhotoState.load', () => {
 		await s.load(true, ALBUM);
 
 		expect(s.photos.map((p) => p.id)).toEqual(['a', 'b', 'c']);
-		expect(s.isOwnerView).toBe(true);
 		expect(s.loading).toBe(false);
 	});
 
-	it('shows a guest only the photostream', async () => {
+	it('shows a guest the public list without fetching the stream album', async () => {
+		// A guest's `/api/photos` already returns the photostream; the album fetch is owner-only.
+		vi.mocked(photosService.getPhotos).mockResolvedValue(list('a'));
 		const s = new PhotoState();
-		await s.load(false, ALBUM);
+		await s.load(false, '');
 
 		expect(s.photos.map((p) => p.id)).toEqual(['a']);
-		expect(s.isOwnerView).toBe(false);
-		expect(photosService.getPhotos).not.toHaveBeenCalled();
+		expect(albumsService.getAlbumPhotos).not.toHaveBeenCalled();
 	});
 
 	it('populates streamIds for membership tests', async () => {
@@ -70,9 +72,7 @@ describe('PhotoState.load', () => {
 		expect(s.streamIds.has('b')).toBe(false);
 	});
 
-	it('fetches both lists once, concurrently', async () => {
-		// The React home fetched the stream, painted, then fetched everything and painted
-		// again. One round, both results kept.
+	it('fetches the main list and the owner stream once, concurrently', async () => {
 		const s = new PhotoState();
 		await s.load(true, ALBUM);
 
@@ -81,7 +81,7 @@ describe('PhotoState.load', () => {
 		expect(albumsService.getAlbumPhotos).toHaveBeenCalledWith(ALBUM);
 	});
 
-	it('skips the album fetch when no photostream is configured', async () => {
+	it('skips the album fetch when the owner has no photostream configured', async () => {
 		const s = new PhotoState();
 		await s.load(true, '');
 
@@ -90,11 +90,13 @@ describe('PhotoState.load', () => {
 		expect(s.photos.map((p) => p.id)).toEqual(['a', 'b', 'c']);
 	});
 
-	it('leaves a guest with nothing when no photostream is configured', async () => {
+	it('reflects an empty public list for a guest with no photostream', async () => {
+		vi.mocked(photosService.getPhotos).mockResolvedValue(list());
 		const s = new PhotoState();
 		await s.load(false, '');
 
 		expect(s.photos).toEqual([]);
+		expect(albumsService.getAlbumPhotos).not.toHaveBeenCalled();
 	});
 
 	describe('deduping', () => {
@@ -115,12 +117,13 @@ describe('PhotoState.load', () => {
 		});
 
 		it('reloads when the viewer changes', async () => {
+			// Guest → owner: the main list refetches, and the owner-only stream fetch now runs.
 			const s = new PhotoState();
 			await s.load(false, ALBUM);
 			await s.load(true, ALBUM);
 
-			expect(photosService.getPhotos).toHaveBeenCalledTimes(1);
-			expect(albumsService.getAlbumPhotos).toHaveBeenCalledTimes(2);
+			expect(photosService.getPhotos).toHaveBeenCalledTimes(2);
+			expect(albumsService.getAlbumPhotos).toHaveBeenCalledTimes(1);
 		});
 
 		it('reloads when the photostream album changes', async () => {
@@ -134,17 +137,15 @@ describe('PhotoState.load', () => {
 
 	describe('stale responses', () => {
 		it('discards an earlier load that resolves last', async () => {
-			// No React fetch in the app guarded against this: change the configured album
-			// (or log in) and a slow earlier response could land after a newer one.
 			const first = deferred<PhotoList>();
 			const second = deferred<PhotoList>();
-			vi.mocked(albumsService.getAlbumPhotos)
+			vi.mocked(photosService.getPhotos)
 				.mockReturnValueOnce(first.promise)
 				.mockReturnValueOnce(second.promise);
 
 			const s = new PhotoState();
-			const a = s.load(false, 'album-1');
-			const b = s.load(false, 'album-2');
+			const a = s.load(true, 'album-1');
+			const b = s.load(true, 'album-2');
 
 			second.resolve(list('new'));
 			await b;
@@ -227,7 +228,7 @@ describe('PhotoState mutations', () => {
 
 		s.updatePhoto({ ...photo('a'), title: 'Renamed' });
 
-		expect(s.allPhotos.find((p) => p.id === 'a')?.title).toBe('Renamed');
+		expect(s.photos.find((p) => p.id === 'a')?.title).toBe('Renamed');
 		expect(s.streamPhotos.find((p) => p.id === 'a')?.title).toBe('Renamed');
 	});
 
@@ -237,7 +238,7 @@ describe('PhotoState mutations', () => {
 
 		s.removePhoto('a');
 
-		expect(s.allPhotos.map((p) => p.id)).toEqual(['b', 'c']);
+		expect(s.photos.map((p) => p.id)).toEqual(['b', 'c']);
 		expect(s.streamPhotos).toEqual([]);
 		expect(s.streamIds.has('a')).toBe(false);
 	});

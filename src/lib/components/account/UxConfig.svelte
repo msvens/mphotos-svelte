@@ -55,7 +55,9 @@
 	// the React original couldn't express (`Number(value) || 1` snapped it to 1 per keystroke).
 	let cols: number | undefined = $derived(app.uxConfig.photoGridCols);
 	let gridSpacing = $derived(String(app.uxConfig.photoGridSpacing));
-	let albumId = $derived(app.uxConfig.photoStreamAlbumId);
+	// The photostream album is a first-class user property (its own endpoint), no longer
+	// part of the UX-config blob — seed it from the user, save it via app.updatePhotostream.
+	let albumId = $derived(app.user.photoStreamAlbumId);
 	let showBio = $derived(app.uxConfig.showBio);
 	let denseTopBar = $derived(app.uxConfig.denseTopBar);
 	let denseBottomBar = $derived(app.uxConfig.denseBottomBar);
@@ -96,10 +98,13 @@
 				colorTheme: theme,
 				denseTopBar,
 				denseBottomBar,
-				photoBorders,
-				photoStreamAlbumId: albumId
+				photoBorders
 			};
 			await app.updateUXConfig(config);
+			// The photostream album lives on its own endpoint now; only write when it changed.
+			if (albumId !== app.user.photoStreamAlbumId) {
+				await app.updatePhotostream(albumId);
+			}
 			toast.success('Configuration saved successfully');
 		} catch (error) {
 			console.error('Error saving config:', error);

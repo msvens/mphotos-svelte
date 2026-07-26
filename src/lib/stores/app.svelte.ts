@@ -4,7 +4,6 @@ import type { User, Guest, UXConfig } from '$lib/api/types';
 import { Colors } from '$lib/colors';
 
 export const defaultUXConfig: UXConfig = {
-	photoStreamAlbumId: '',
 	photoGridCols: 3,
 	photoItemsLoad: 30,
 	// 0 ("None") is the only sensible default: the UX Config dropdown offers 0/5/10/15,
@@ -20,7 +19,7 @@ export const defaultUXConfig: UXConfig = {
 	windowFullScreen: false
 };
 
-export const defaultUser: User = { name: '', bio: '', pic: '' };
+export const defaultUser: User = { name: '', bio: '', pic: '', photoStreamAlbumId: '' };
 
 /**
  * App-wide auth, guest, and UX-config state.
@@ -108,6 +107,15 @@ export class AppState {
 		// Adopt what we sent, not what came back: the endpoint echoes the updated *User*,
 		// not the config. The backend stores the payload verbatim, so this is the truth.
 		this.uxConfig = { ...defaultUXConfig, ...config };
+	}
+
+	/**
+	 * Set the photostream album id (owner only) and adopt the returned user.
+	 * The backend echoes the whole row, so adopting it keeps `user` authoritative.
+	 * An empty string clears the stream. Throws on failure.
+	 */
+	async updatePhotostream(photoStreamAlbumId: string) {
+		this.user = await userService.updatePhotostream(photoStreamAlbumId);
 	}
 
 	/** One-shot initial load; safe to call more than once. */

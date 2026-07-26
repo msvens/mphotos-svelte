@@ -8,30 +8,27 @@ const EMPTY: PhotoList = { length: 0, photos: [] };
 /**
  * The site's photo lists.
  *
- * Collapses the `isUser ? getPhotos() : getAlbumPhotos(streamId)` branch that the React
- * app repeated in five places, and caches across navigation so a grid → photo → back
- * round trip costs nothing.
+ * The main list comes from the public `GET /api/photos`, which the backend serves by
+ * session: the owner gets every photo, a guest gets the photostream members. The owner
+ * additionally needs the photostream album's membership to drive the home-page dimming
+ * and the "Show Photostream" narrow, so that stays an owner-only second fetch. Caches
+ * across navigation so a grid → photo → back round trip costs nothing.
  *
  * Holds only state + actions (no `$effect`, no timers) so it can be unit-tested by
  * instantiating it directly. The route that mounts owns the call to `load()`.
  * Provide/consume it via the context helpers below.
  */
 export class PhotoState {
-	/** Every photo. Only populated for the owner; guests get an empty list. */
-	allPhotos = $state<PhotoMetadata[]>([]);
-	/** Photos in the configured photostream album. Empty when none is configured. */
+	/** The list a visitor should see: everything for the owner, the stream for a guest. */
+	photos = $state<PhotoMetadata[]>([]);
+	/** The photostream album's members. Owner-only; empty for a guest. */
 	streamPhotos = $state<PhotoMetadata[]>([]);
 	/** Ids of `streamPhotos`, for O(1) membership tests while rendering. */
 	streamIds = new SvelteSet<string>();
 	/** Cache-bust tokens for edited photos: the server overwrites files at the same URL. */
 	versions = new SvelteMap<string, number>();
-	/** Whether the loaded lists were fetched as the authenticated owner. */
-	isOwnerView = $state(false);
 	loading = $state(true);
 	error = $state<string | null>(null);
-
-	/** The list a visitor should see: everything for the owner, the stream otherwise. */
-	photos = $derived(this.isOwnerView ? this.allPhotos : this.streamPhotos);
 
 	/** Bumped per load; a response whose token is stale is discarded. */
 	#token = 0;
@@ -39,9 +36,10 @@ export class PhotoState {
 	#key: string | null = null;
 
 	/**
-	 * Load both lists for the given viewer. Repeat calls with the same
-	 * `(isUser, photoStreamAlbumId)` pair are ignored — pass `force` after a mutation.
-	 * Never throws; check `error`.
+	 * Load the visitor's photo list, plus the owner's photostream membership. Repeat calls
+	 * with the same `(isUser, photoStreamAlbumId)` pair are ignored — pass `force` after a
+	 * mutation. `isUser` stays in the dedupe key so an owner with no stream album still
+	 * refetches on login (their key differs from the guest's). Never throws; check `error`.
 	 */
 	async load(isUser: boolean, photoStreamAlbumId: string, force = false) {
 		const key = `${isUser}:${photoStreamAlbumId}`;
@@ -51,19 +49,18 @@ export class PhotoState {
 		const token = ++this.#token;
 		this.loading = true;
 		try {
-			// Both lists in one round: the owner's view needs `allPhotos` to render and
-			// `streamIds` to dim, and toggling between them must not refetch.
-			const [stream, all] = await Promise.all([
-				photoStreamAlbumId ? albumsService.getAlbumPhotos(photoStreamAlbumId) : EMPTY,
-				isUser ? photosService.getPhotos() : EMPTY
+			// The main list is public and session-aware; the stream membership is owner-only
+			// (a guest's `photoStreamAlbumId` is blank) and feeds `streamIds` for dimming.
+			const [main, stream] = await Promise.all([
+				photosService.getPhotos(),
+				isUser && photoStreamAlbumId ? albumsService.getAlbumPhotos(photoStreamAlbumId) : EMPTY
 			]);
 			if (token !== this.#token) return;
 
+			this.photos = main.photos;
 			this.streamPhotos = stream.photos;
 			this.streamIds.clear();
 			for (const p of stream.photos) this.streamIds.add(p.id);
-			this.allPhotos = all.photos;
-			this.isOwnerView = isUser;
 			this.error = null;
 		} catch (e) {
 			if (token !== this.#token) return;
@@ -96,14 +93,14 @@ export class PhotoState {
 	/** Replace a photo in both lists, after an edit. */
 	updatePhoto(photo: PhotoMetadata) {
 		const swap = (p: PhotoMetadata) => (p.id === photo.id ? photo : p);
-		this.allPhotos = this.allPhotos.map(swap);
+		this.photos = this.photos.map(swap);
 		this.streamPhotos = this.streamPhotos.map(swap);
 	}
 
 	/** Drop a photo from both lists, after a delete. */
 	removePhoto(id: string) {
 		const keep = (p: PhotoMetadata) => p.id !== id;
-		this.allPhotos = this.allPhotos.filter(keep);
+		this.photos = this.photos.filter(keep);
 		this.streamPhotos = this.streamPhotos.filter(keep);
 		this.streamIds.delete(id);
 	}

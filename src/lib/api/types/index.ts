@@ -89,6 +89,7 @@ export interface User {
 	name: string;
 	bio: string;
 	pic: string;
+	photoStreamAlbumId: string;
 	driveFolderId?: string;
 	driveFolderName?: string;
 	config?: string;
@@ -130,7 +131,6 @@ export interface Config {
 
 // User-facing UI/theme configuration returned by /api/user/config.
 export interface UXConfig {
-	photoStreamAlbumId: string;
 	photoGridCols: number;
 	photoItemsLoad: number; // DEPRECATED: No longer used, kept for backwards compatibility with old configs
 	photoGridSpacing: number;

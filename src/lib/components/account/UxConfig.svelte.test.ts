@@ -8,12 +8,17 @@ import UxConfig from './UxConfig.svelte';
 
 vi.mock('$lib/api/services', () => ({
 	authService: { isLoggedIn: vi.fn() },
-	userService: { getUser: vi.fn(), getUserConfig: vi.fn(), updateUserConfig: vi.fn() },
+	userService: {
+		getUser: vi.fn(),
+		getUserConfig: vi.fn(),
+		updateUserConfig: vi.fn(),
+		updatePhotostream: vi.fn()
+	},
 	guestsService: { isGuest: vi.fn(), getGuest: vi.fn() },
 	albumsService: { getAlbums: vi.fn() }
 }));
 
-const mockUser: User = { name: 'Martin', bio: '', pic: '' };
+const mockUser: User = { name: 'Martin', bio: '', pic: '', photoStreamAlbumId: '' };
 
 const albums: Album[] = [
 	{ id: 'a1', name: 'Summer', description: '', coverPic: '', code: '', orderBy: PhotoOrder.None },
@@ -21,10 +26,11 @@ const albums: Album[] = [
 ];
 
 /** An AppState populated as it would be behind the page's loading gate. */
-function loggedInState(config: Partial<UXConfig> = {}): AppState {
+function loggedInState(config: Partial<UXConfig> = {}, album = ''): AppState {
 	const s = new AppState();
 	s.uxConfig = { ...defaultUXConfig, ...config };
-	s.user = mockUser;
+	// The photostream album is a user property now, not part of the UX-config blob.
+	s.user = { ...mockUser, photoStreamAlbumId: album };
 	s.isUser = true;
 	s.loading = false;
 	return s;
@@ -35,6 +41,7 @@ const saveButton = () => screen.getByRole('button', { name: /SAVE CONFIG|SAVING/
 beforeEach(() => {
 	vi.mocked(albumsService.getAlbums).mockReset().mockResolvedValue(albums);
 	vi.mocked(userService.updateUserConfig).mockReset().mockResolvedValue(mockUser);
+	vi.mocked(userService.updatePhotostream).mockReset().mockResolvedValue(mockUser);
 	vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -70,8 +77,8 @@ describe('UxConfig', () => {
 			expect(screen.getByRole('combobox', { name: /Grid Spacing/ })).toHaveTextContent('None');
 		});
 
-		it('populates the photostream album list', async () => {
-			renderWithApp(UxConfig, { state: loggedInState({ photoStreamAlbumId: 'a2' }) });
+		it('populates the photostream album from the user', async () => {
+			renderWithApp(UxConfig, { state: loggedInState({}, 'a2') });
 
 			expect(await screen.findByRole('combobox', { name: /Photostream Album/ })).toHaveTextContent(
 				'Winter'
@@ -104,6 +111,24 @@ describe('UxConfig', () => {
 				windowFullScreen: true,
 				denseTopBar: true
 			});
+			// The photostream album is unchanged, so its dedicated endpoint isn't touched.
+			expect(userService.updatePhotostream).not.toHaveBeenCalled();
+		});
+
+		it('writes a changed photostream album to its own endpoint', async () => {
+			const state = loggedInState({}, 'a1');
+			renderWithApp(UxConfig, { state });
+
+			const combo = await screen.findByRole('combobox', { name: /Photostream Album/ });
+			await fireEvent.click(combo);
+			await fireEvent.click(screen.getByRole('option', { name: 'Winter' }));
+			await fireEvent.click(saveButton());
+
+			await vi.waitFor(() => expect(userService.updatePhotostream).toHaveBeenCalledWith('a2'));
+			// The config PUT no longer carries the album id.
+			expect(userService.updateUserConfig).toHaveBeenCalledWith(
+				expect.not.objectContaining({ photoStreamAlbumId: expect.anything() })
+			);
 		});
 
 		it('toasts on success', async () => {

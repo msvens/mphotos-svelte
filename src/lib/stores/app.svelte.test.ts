@@ -5,11 +5,21 @@ import type { User, UXConfig, Guest } from '$lib/api/types';
 
 vi.mock('$lib/api/services', () => ({
 	authService: { isLoggedIn: vi.fn(), login: vi.fn(), logout: vi.fn() },
-	userService: { getUser: vi.fn(), getUserConfig: vi.fn(), updateUserConfig: vi.fn() },
+	userService: {
+		getUser: vi.fn(),
+		getUserConfig: vi.fn(),
+		updateUserConfig: vi.fn(),
+		updatePhotostream: vi.fn()
+	},
 	guestsService: { isGuest: vi.fn(), getGuest: vi.fn() }
 }));
 
-const mockUser: User = { name: 'Test User', bio: 'Test bio', pic: '/test-pic.jpg' };
+const mockUser: User = {
+	name: 'Test User',
+	bio: 'Test bio',
+	pic: '/test-pic.jpg',
+	photoStreamAlbumId: ''
+};
 const serverConfig: Partial<UXConfig> = { photoGridCols: 5, colorTheme: 'light' };
 const mockGuest: Guest = {
 	name: 'Test Guest',
@@ -25,6 +35,7 @@ beforeEach(() => {
 	vi.mocked(userService.getUser).mockReset();
 	vi.mocked(userService.getUserConfig).mockReset();
 	vi.mocked(userService.updateUserConfig).mockReset();
+	vi.mocked(userService.updatePhotostream).mockReset();
 	vi.mocked(guestsService.isGuest).mockReset();
 	vi.mocked(guestsService.getGuest).mockReset();
 });
@@ -164,6 +175,28 @@ describe('AppState.updateUXConfig', () => {
 		expect(authService.isLoggedIn).not.toHaveBeenCalled();
 		expect(userService.getUser).not.toHaveBeenCalled();
 		expect(userService.getUserConfig).not.toHaveBeenCalled();
+	});
+});
+
+describe('AppState.updatePhotostream', () => {
+	it('sets the album id and adopts the returned user', async () => {
+		const updated: User = { ...mockUser, photoStreamAlbumId: 'album-uuid' };
+		vi.mocked(userService.updatePhotostream).mockResolvedValue(updated);
+
+		const app = new AppState();
+		await app.updatePhotostream('album-uuid');
+
+		expect(userService.updatePhotostream).toHaveBeenCalledWith('album-uuid');
+		expect(app.user.photoStreamAlbumId).toBe('album-uuid');
+	});
+
+	it('throws and leaves the user untouched when the save fails', async () => {
+		vi.mocked(userService.updatePhotostream).mockRejectedValue(new Error('nope'));
+
+		const app = new AppState();
+		await expect(app.updatePhotostream('album-uuid')).rejects.toThrow('nope');
+
+		expect(app.user).toEqual(defaultUser);
 	});
 });
 
