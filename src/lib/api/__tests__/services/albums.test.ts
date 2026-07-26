@@ -78,6 +78,13 @@ describe('albumsService', () => {
 			await albumsService.getAlbumPhotos('a1', 'secret');
 			expect(api.get).toHaveBeenCalledWith('/api/albums/a1/photos?code=secret');
 		});
+
+		it('defaults photos to an empty array when the backend omits it', async () => {
+			// An empty album comes back as `{ length: 0 }` (Go omitempty drops the slice).
+			vi.mocked(api.get).mockResolvedValue({ length: 0 });
+			const result = await albumsService.getAlbumPhotos('a1');
+			expect(result.photos).toEqual([]);
+		});
 	});
 
 	it('addAlbumPhotos sends photo IDs', async () => {

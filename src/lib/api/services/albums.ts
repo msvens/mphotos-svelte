@@ -39,7 +39,9 @@ export const albumsService: AlbumsService = {
 		const url = code
 			? `${API_ENDPOINTS.albumPhotos(id)}?code=${encodeURIComponent(code)}`
 			: API_ENDPOINTS.albumPhotos(id);
-		return api.get<PhotoList>(url);
+		const res = await api.get<PhotoList>(url);
+		// The backend omits `photos` entirely for an empty album (Go omitempty), so guard it.
+		return { length: res.length ?? 0, photos: res.photos ?? [] };
 	},
 
 	async addAlbumPhotos(id: string, photoIds: string[]) {

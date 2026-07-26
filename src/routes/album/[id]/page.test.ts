@@ -106,6 +106,13 @@ describe('album detail', () => {
 		expect(await screen.findByText('Add photos to this album')).toBeInTheDocument();
 	});
 
+	it('handles the backend omitting photos for an empty album', async () => {
+		// An empty album returns `{ length: 0 }` with no `photos` field (Go omitempty).
+		vi.mocked(albumsService.getAlbumPhotos).mockResolvedValue({ length: 0 } as never);
+		renderWithApp(AlbumDetail);
+		expect(await screen.findByText('Add photos to this album')).toBeInTheDocument();
+	});
+
 	describe('as the owner', () => {
 		beforeEach(() => {
 			vi.mocked(albumsService.updateAlbum)

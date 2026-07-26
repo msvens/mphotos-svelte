@@ -50,7 +50,7 @@
 			try {
 				const list = await albumsService.getAlbumPhotos(id, c || undefined);
 				if (cancelled) return;
-				photos = list.photos;
+				photos = list.photos ?? [];
 			} catch (e) {
 				if (cancelled) return;
 				if (e instanceof ApiError && e.status === 401) {
@@ -87,7 +87,7 @@
 		try {
 			await albumsService.updateAlbumOrder(album, { length: photos.length, photos });
 			const list = await albumsService.getAlbumPhotos(album.id, code || undefined);
-			photos = list.photos;
+			photos = list.photos ?? [];
 			orderUpdated = false;
 			toast.success('Ordering saved');
 		} catch (e) {

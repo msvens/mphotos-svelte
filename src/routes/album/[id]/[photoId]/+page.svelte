@@ -28,7 +28,7 @@
 			try {
 				const list = await albumsService.getAlbumPhotos(id, c || undefined);
 				if (cancelled) return;
-				photos = list.photos;
+				photos = list.photos ?? [];
 			} catch (e) {
 				if (cancelled) return;
 				console.error('Error fetching album photos:', e);
