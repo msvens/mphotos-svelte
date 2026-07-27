@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Icon, BookOpen, ArchiveBox } from 'svelte-hero-icons';
+	import { Icon, BookOpen, ArchiveBox, RectangleStack } from 'svelte-hero-icons';
 	import { getAppState } from '$lib/stores/app.svelte';
 	import { getPhotoState } from '$lib/stores/photos.svelte';
 	import { getToastState } from '$lib/stores/toast.svelte';
@@ -7,6 +7,7 @@
 	import Section from '$lib/components/layout/Section.svelte';
 	import Bio from '$lib/components/home/Bio.svelte';
 	import PhotoGrid from '$lib/components/photo/PhotoGrid.svelte';
+	import PhotoAlbumsDialog from '$lib/components/photo/PhotoAlbumsDialog.svelte';
 	import ToggleSwitch from '$lib/components/ui/ToggleSwitch.svelte';
 	import type { PhotoMetadata } from '$lib/api/types';
 
@@ -16,6 +17,16 @@
 
 	/** Owner only. Off shows every photo; on narrows to the photostream album. */
 	let showPhotostream = $state(false);
+
+	// Album-picker dialog for a single photo, opened from the grid overlay. The dialog stays
+	// mounted once first opened (photo swaps behind it), so its album list loads only once.
+	let albumsPhoto = $state<PhotoMetadata | undefined>(undefined);
+	let showAlbums = $state(false);
+
+	function openAlbums(photo: PhotoMetadata) {
+		albumsPhoto = photo;
+		showAlbums = true;
+	}
 
 	// The route owns the fetch — the store is state + actions only. `load` dedupes, so
 	// re-running this costs nothing.
@@ -47,13 +58,23 @@
      still render the overlay's dark bar for guests. -->
 {#snippet streamOverlay(photo: PhotoMetadata)}
 	{@const inStream = photoState.streamIds.has(photo.id)}
-	<button
-		onclick={() => toggleStream(photo)}
-		aria-label={inStream ? 'Remove from photostream' : 'Add to photostream'}
-		class="cursor-pointer"
-	>
-		<Icon src={inStream ? BookOpen : ArchiveBox} class="h-6 w-6 text-white" />
-	</button>
+	<div class="flex items-center gap-2">
+		<button
+			onclick={() => openAlbums(photo)}
+			aria-label="Select albums"
+			title="Select albums"
+			class="cursor-pointer"
+		>
+			<Icon src={RectangleStack} class="h-6 w-6 text-white" />
+		</button>
+		<button
+			onclick={() => toggleStream(photo)}
+			aria-label={inStream ? 'Remove from photostream' : 'Add to photostream'}
+			class="cursor-pointer"
+		>
+			<Icon src={inStream ? BookOpen : ArchiveBox} class="h-6 w-6 text-white" />
+		</button>
+	</div>
 {/snippet}
 
 <PageSpacing />
@@ -87,4 +108,8 @@
 			/>
 		</Section>
 	</div>
+{/if}
+
+{#if albumsPhoto}
+	<PhotoAlbumsDialog open={showAlbums} photo={albumsPhoto} onClose={() => (showAlbums = false)} />
 {/if}

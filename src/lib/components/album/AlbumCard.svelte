@@ -1,15 +1,16 @@
 <script lang="ts">
-	import { Icon, Pencil, Trash } from 'svelte-hero-icons';
+	import { Icon, Pencil, Trash, Share } from 'svelte-hero-icons';
 	import type { Album } from '$lib/api/types';
 
 	interface AlbumCardProps {
 		album: Album;
-		/** Owner-only: when provided, an edit/delete row is shown below the card. */
+		/** Owner-only: when provided, an edit/delete/share row is shown below the card. */
 		onEdit?: () => void;
 		onDelete?: () => void;
+		onShare?: () => void;
 	}
 
-	let { album, onEdit, onDelete }: AlbumCardProps = $props();
+	let { album, onEdit, onDelete, onShare }: AlbumCardProps = $props();
 
 	const FALLBACK = '/photo-album.jpg';
 
@@ -43,8 +44,18 @@
 			<p class="text-sm text-gray-600 dark:text-gray-400">{album.description}</p>
 		</div>
 	</a>
-	{#if onEdit || onDelete}
+	{#if onEdit || onDelete || onShare}
 		<div class="flex gap-2 px-4 pb-4">
+			{#if onShare}
+				<button
+					onclick={onShare}
+					aria-label="Copy share link"
+					title="Copy share link"
+					class="p-2 text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+				>
+					<Icon src={Share} class="h-5 w-5" />
+				</button>
+			{/if}
 			{#if onEdit}
 				<button
 					onclick={onEdit}

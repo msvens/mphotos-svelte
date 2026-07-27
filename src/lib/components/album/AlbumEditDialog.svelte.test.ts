@@ -13,10 +13,22 @@ const album: Album = {
 };
 
 describe('AlbumEditDialog', () => {
-	it('seeds the form from the album', () => {
+	it('seeds the form from the album and marks a coded album hidden', () => {
 		render(AlbumEditDialog, { props: { open: true, album, onClose: vi.fn() } });
 		expect(screen.getByLabelText('Name')).toHaveValue('Old name');
-		expect(screen.getByLabelText('Code')).toHaveValue('c0');
+		expect(screen.getByRole('checkbox', { name: /hidden/i })).toBeChecked();
+		expect(screen.getByLabelText('Share code')).toHaveValue('c0');
+	});
+
+	it('clears the code when unhidden, republishing the album', async () => {
+		const onClose = vi.fn();
+		render(AlbumEditDialog, { props: { open: true, album, onClose } });
+
+		await fireEvent.click(screen.getByRole('checkbox', { name: /hidden/i }));
+		await fireEvent.click(screen.getByRole('button', { name: 'OK' }));
+
+		expect(onClose).toHaveBeenCalledWith(expect.objectContaining({ code: '' }));
+		expect(screen.queryByLabelText('Share code')).toBeNull();
 	});
 
 	it('returns the edited album on OK, preserving id and cover', async () => {

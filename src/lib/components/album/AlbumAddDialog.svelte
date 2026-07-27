@@ -1,8 +1,10 @@
 <script lang="ts">
 	import { PhotoOrder, type Album } from '$lib/api/types';
+	import { randomCode } from '$lib/utils';
 	import Dialog from '$lib/components/ui/Dialog.svelte';
 	import TextField from '$lib/components/ui/TextField.svelte';
 	import Select from '$lib/components/ui/Select.svelte';
+	import Checkbox from '$lib/components/ui/Checkbox.svelte';
 	import { SORT_OPTIONS, TEXTAREA_CLASS } from './albumSort';
 
 	interface AlbumAddDialogProps {
@@ -14,18 +16,26 @@
 
 	let name = $state('');
 	let description = $state('');
+	let hidden = $state(false);
 	let code = $state('');
 	let orderBy = $state<PhotoOrder>(PhotoOrder.None);
+
+	function onHiddenToggle(e: Event & { currentTarget: HTMLInputElement }) {
+		// Prefill a code the first time it's hidden; don't refill reactively, so it stays editable.
+		if (e.currentTarget.checked && !code) code = randomCode();
+	}
 
 	function reset() {
 		name = '';
 		description = '';
+		hidden = false;
 		code = '';
 		orderBy = PhotoOrder.None;
 	}
 
 	function handleOk() {
-		onClose({ name, description, code, orderBy, coverPic: '' });
+		// An empty code means "public"; only send a code when the album is hidden.
+		onClose({ name, description, code: hidden ? code : '', orderBy, coverPic: '' });
 		reset();
 	}
 
@@ -53,7 +63,10 @@
 			<textarea id="album-add-desc" bind:value={description} rows="2" class={TEXTAREA_CLASS}
 			></textarea>
 		</div>
-		<TextField label="Code" bind:value={code} fullWidth />
+		<Checkbox bind:checked={hidden} label="Hidden — share by link only" onchange={onHiddenToggle} />
+		{#if hidden}
+			<TextField label="Share code" bind:value={code} fullWidth />
+		{/if}
 		<Select
 			label="Sorting"
 			value={String(orderBy)}

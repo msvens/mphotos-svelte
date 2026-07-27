@@ -13,9 +13,15 @@ vi.mock('$lib/api/services', () => ({
 	photosService: {
 		getPhotos: vi.fn(),
 		setPhotoAlbums: vi.fn(),
+		getPhotoAlbums: vi.fn(),
 		getPhotoThumbUrl: (id: string) => `/api/thumbs/${id}.jpg`
 	},
-	albumsService: { getAlbumPhotos: vi.fn(), addAlbumPhotos: vi.fn(), deleteAlbumPhotos: vi.fn() }
+	albumsService: {
+		getAlbums: vi.fn(),
+		getAlbumPhotos: vi.fn(),
+		addAlbumPhotos: vi.fn(),
+		deleteAlbumPhotos: vi.fn()
+	}
 }));
 
 const ALBUM = 'stream-album';
@@ -190,6 +196,26 @@ describe('home page', () => {
 				severity: 'error',
 				message: 'Failed to update photostream'
 			});
+		});
+	});
+
+	describe('photo albums picker', () => {
+		beforeEach(() => {
+			vi.mocked(albumsService.getAlbums).mockResolvedValue([]);
+			vi.mocked(photosService.getPhotoAlbums).mockResolvedValue([]);
+		});
+
+		it('opens the album picker from the grid overlay, keeping the photostream button', async () => {
+			renderWithApp(Home, { state: state(true) });
+			await vi.waitFor(() => expect(tiles()).toHaveLength(3));
+
+			// The photostream toggle button is still there alongside the new albums button.
+			expect(screen.getAllByRole('button', { name: 'Add to photostream' }).length).toBeGreaterThan(
+				0
+			);
+			await fireEvent.click(screen.getAllByRole('button', { name: 'Select albums' })[0]);
+
+			expect(await screen.findByRole('heading', { name: 'Photo Albums' })).toBeInTheDocument();
 		});
 	});
 

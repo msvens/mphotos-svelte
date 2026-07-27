@@ -1,13 +1,15 @@
 <script lang="ts">
 	import { page } from '$app/state';
-	import { Icon, ChevronLeft, ChevronRight, Photo } from 'svelte-hero-icons';
+	import { Icon, ChevronLeft, ChevronRight, Photo, Share } from 'svelte-hero-icons';
 	import { albumsService, photosService } from '$lib/api/services';
 	import { ApiError } from '$lib/api/client';
 	import { getAppState } from '$lib/stores/app.svelte';
 	import { getToastState } from '$lib/stores/toast.svelte';
 	import type { Album, PhotoMetadata } from '$lib/api/types';
 	import PageSpacing from '$lib/components/layout/PageSpacing.svelte';
+	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import PhotoGrid from '$lib/components/photo/PhotoGrid.svelte';
+	import { copyAlbumLink } from '$lib/components/album/albumShare';
 
 	const app = getAppState();
 	const toast = getToastState();
@@ -111,6 +113,17 @@
 	let isCover = $derived(
 		(photo: PhotoMetadata) => album?.coverPic === photosService.getLandscapeUrl(photo.id)
 	);
+
+	async function shareLink() {
+		if (!album) return;
+		try {
+			await copyAlbumLink(album);
+			toast.success('Link copied');
+		} catch (e) {
+			console.error('Error copying album link:', e);
+			toast.error('Failed to copy link');
+		}
+	}
 </script>
 
 <!-- Owner-only per-tile controls: reorder + set-as-cover. Declared out here so the overlay
@@ -155,7 +168,12 @@
 {:else}
 	<div class="mx-auto max-w-[1024px]">
 		<div class="mb-6 flex items-center justify-between gap-4">
-			<h1 class="text-2xl font-light">{album.name}</h1>
+			<div class="flex items-center gap-2">
+				<h1 class="text-2xl font-light">{album.name}</h1>
+				{#if app.isUser}
+					<IconButton icon={Share} size="small" title="Copy share link" onclick={shareLink} />
+				{/if}
+			</div>
 			{#if app.isUser && photos.length > 1}
 				<button
 					onclick={saveOrdering}

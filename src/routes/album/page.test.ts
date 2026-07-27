@@ -18,6 +18,9 @@ vi.mock('$lib/api/services', () => ({
 	}
 }));
 
+const writeText = vi.fn().mockResolvedValue(undefined);
+Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
 function ownerState(): AppState {
 	const s = new AppState();
 	s.isUser = true;
@@ -106,6 +109,19 @@ describe('album listing', () => {
 			await fireEvent.click(screen.getByRole('button', { name: 'DELETE' }));
 
 			await vi.waitFor(() => expect(albumsService.deleteAlbum).toHaveBeenCalledWith('a1'));
+		});
+
+		it('copies a share link (with code for a hidden album)', async () => {
+			writeText.mockClear();
+			vi.mocked(albumsService.getAlbums).mockResolvedValue([album('a1', { code: 'x1' })]);
+			const { toast } = renderWithApp(AlbumList, { state: ownerState() });
+
+			await fireEvent.click(await screen.findByRole('button', { name: 'Copy share link' }));
+
+			await vi.waitFor(() =>
+				expect(writeText).toHaveBeenCalledWith(`${window.location.origin}/album/a1?code=x1`)
+			);
+			expect(toast.toasts[0]).toMatchObject({ severity: 'success', message: 'Link copied' });
 		});
 	});
 });

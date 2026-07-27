@@ -8,6 +8,7 @@
 	import AlbumAddDialog from './AlbumAddDialog.svelte';
 	import AlbumEditDialog from './AlbumEditDialog.svelte';
 	import AlbumDeleteDialog from './AlbumDeleteDialog.svelte';
+	import { copyAlbumLink } from './albumShare';
 
 	interface AlbumGridProps {
 		albums: Album[];
@@ -61,6 +62,16 @@
 		}
 	}
 
+	async function shareAlbum(album: Album) {
+		try {
+			await copyAlbumLink(album);
+			toast.success('Link copied');
+		} catch (e) {
+			console.error('Error copying album link:', e);
+			toast.error('Failed to copy link');
+		}
+	}
+
 	function openEdit(album: Album) {
 		selected = album;
 		showEdit = true;
@@ -91,6 +102,7 @@
 			{album}
 			onEdit={app.isUser ? () => openEdit(album) : undefined}
 			onDelete={app.isUser ? () => openDelete(album) : undefined}
+			onShare={app.isUser ? () => shareAlbum(album) : undefined}
 		/>
 	{/each}
 </div>
