@@ -101,6 +101,18 @@ export class AppState {
 		}
 	}
 
+	/** Log the current registered guest out. Clears guest state even if the request fails. */
+	async logoutGuest() {
+		try {
+			await guestsService.logoutGuest();
+		} catch (e) {
+			console.error('guest logout failed:', e);
+		} finally {
+			this.guest = undefined;
+			this.isGuest = false;
+		}
+	}
+
 	/** Save UX config and adopt it locally. Throws on failure. */
 	async updateUXConfig(config: UXConfig) {
 		await userService.updateUserConfig(config);
