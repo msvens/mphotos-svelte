@@ -32,6 +32,16 @@ describe('PhotoGrid', () => {
 		expect(links[2]).toHaveAttribute('href', '/photo/c');
 	});
 
+	it('appends linkQuery to each tile href', () => {
+		render(PhotoGrid, {
+			props: { photos, columns: 3, spacing: 0, linkTo: '/album/x', linkQuery: '?code=abc' }
+		});
+
+		const links = screen.getAllByRole('link');
+		expect(links[0]).toHaveAttribute('href', '/album/x/a?code=abc');
+		expect(links[2]).toHaveAttribute('href', '/album/x/c?code=abc');
+	});
+
 	it('uses the thumbnail and the title as alt text', () => {
 		render(PhotoGrid, { props: { photos, columns: 3, spacing: 0, linkTo: '/photo' } });
 

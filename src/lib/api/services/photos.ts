@@ -48,7 +48,9 @@ export const photosService: PhotosService = {
 			? `${API_ENDPOINTS.photos}?limit=${limit}&offset=${offset}`
 			: `${API_ENDPOINTS.photos}?limit=${limit}`;
 		try {
-			return await api.get<PhotoList>(url);
+			const res = await api.get<PhotoList>(url);
+			// The backend omits `photos` for an empty result (Go omitempty), so guard it.
+			return { length: res.length ?? 0, photos: res.photos ?? [] };
 		} catch (error) {
 			console.error('Error fetching photos:', error);
 			return { length: 0, photos: [] };
@@ -58,7 +60,8 @@ export const photosService: PhotosService = {
 	async getPhotosByCameraModel(cameraModel: string) {
 		const url = `${API_ENDPOINTS.photos}?cameraModel=${encodeURIComponent(cameraModel)}`;
 		try {
-			return await api.get<PhotoList>(url);
+			const res = await api.get<PhotoList>(url);
+			return { length: res.length ?? 0, photos: res.photos ?? [] };
 		} catch (error) {
 			console.error('Error fetching photos by camera:', error);
 			return { length: 0, photos: [] };

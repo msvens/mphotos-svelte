@@ -9,8 +9,10 @@
 		columns: number;
 		/** Gap between tiles in pixels, from `uxConfig.photoGridSpacing`. */
 		spacing: number;
-		/** Tiles link to `{linkTo}/{photo.id}`. */
+		/** Tiles link to `{linkTo}/{photo.id}{linkQuery}`. */
 		linkTo: string;
+		/** Optional query appended to each tile href, e.g. `?code=abc`. */
+		linkQuery?: string;
 		dimPhoto?: (photo: PhotoMetadata) => boolean;
 		/** Overlay bar along the bottom of each tile. Put real buttons in here. */
 		overlay?: Snippet<[PhotoMetadata, number]>;
@@ -18,7 +20,15 @@
 
 	// `columns` and `spacing` are required: the only sensible defaults live in
 	// `defaultUXConfig`, and every call site passes them straight from there.
-	let { photos, columns, spacing, linkTo, dimPhoto, overlay }: PhotoGridProps = $props();
+	let {
+		photos,
+		columns,
+		spacing,
+		linkTo,
+		linkQuery = '',
+		dimPhoto,
+		overlay
+	}: PhotoGridProps = $props();
 </script>
 
 {#if !photos || photos.length === 0}
@@ -37,7 +47,7 @@
 				<div class="group relative block w-full overflow-hidden">
 					<div class="relative aspect-square w-full">
 						<a
-							href="{linkTo}/{photo.id}"
+							href="{linkTo}/{photo.id}{linkQuery}"
 							class="block h-full w-full focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-500"
 						>
 							<img

@@ -333,7 +333,7 @@
 					/>
 					<IconButton
 						icon={Scissors}
-						onclick={() => goto(`/photo/${currentPhoto.id}/crop`)}
+						onclick={() => goto(`${urlPrefix}${currentPhoto.id}/crop${searchQuery}`)}
 						title="Crop & rotate"
 						tooltipPlacement="bottom"
 						background={alpha(cs.backgroundColor, 0.5)}
