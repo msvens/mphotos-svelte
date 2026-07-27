@@ -1,5 +1,5 @@
 <script lang="ts">
-	import { Icon, BookOpen, ArchiveBox, RectangleStack } from 'svelte-hero-icons';
+	import { Icon, BookOpen, ArchiveBox, Folder } from 'svelte-hero-icons';
 	import { getAppState } from '$lib/stores/app.svelte';
 	import { getPhotoState } from '$lib/stores/photos.svelte';
 	import { getToastState } from '$lib/stores/toast.svelte';
@@ -65,7 +65,7 @@
 			title="Select albums"
 			class="cursor-pointer"
 		>
-			<Icon src={RectangleStack} class="h-6 w-6 text-white" />
+			<Icon src={Folder} class="h-6 w-6 text-white" />
 		</button>
 		<button
 			onclick={() => toggleStream(photo)}
