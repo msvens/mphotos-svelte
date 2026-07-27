@@ -7,6 +7,8 @@
 	import Profile from '$lib/components/account/Profile.svelte';
 	import Maintenance from '$lib/components/account/Maintenance.svelte';
 	import UxConfig from '$lib/components/account/UxConfig.svelte';
+	import LocalDrive from '$lib/components/account/LocalDrive.svelte';
+	import GoogleDrive from '$lib/components/account/GoogleDrive.svelte';
 
 	const app = getAppState();
 
@@ -49,6 +51,10 @@
 		<div class="flex-1 pl-4 pr-8">
 			{#if active === PROFILE}
 				<Profile />
+			{:else if active === GOOGLE_DRIVE}
+				<GoogleDrive />
+			{:else if active === LOCAL_DRIVE}
+				<LocalDrive />
 			{:else if active === UXCONFIG}
 				<UxConfig />
 			{:else if active === MAINTENANCE}

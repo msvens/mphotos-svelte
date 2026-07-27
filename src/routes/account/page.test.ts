@@ -13,14 +13,23 @@ vi.mock('$lib/api/services', () => ({
 		getUser: vi.fn(),
 		getUserConfig: vi.fn(),
 		updateUser: vi.fn(),
-		updateUserConfig: vi.fn()
+		updateUserConfig: vi.fn(),
+		updateUserGDrive: vi.fn()
 	},
 	guestsService: { isGuest: vi.fn(), getGuest: vi.fn() },
 	photosService: {
 		getPhotos: vi.fn().mockResolvedValue({ length: 0, photos: [] }),
-		deletePhotos: vi.fn()
+		deletePhotos: vi.fn(),
+		uploadLocalPhoto: vi.fn()
 	},
-	albumsService: { getAlbums: vi.fn().mockResolvedValue([]) }
+	albumsService: { getAlbums: vi.fn().mockResolvedValue([]) },
+	driveService: {
+		isAuthenticated: vi.fn().mockResolvedValue(false),
+		disconnectDrive: vi.fn(),
+		checkDrive: vi.fn(),
+		scheduleAddPhotosJob: vi.fn(),
+		getJobStatus: vi.fn()
+	}
 }));
 
 beforeEach(() => vi.clearAllMocks());
@@ -80,7 +89,7 @@ describe('account page gating', () => {
 		expect(screen.getByRole('button', { name: 'SAVE CONFIG' })).toBeInTheDocument();
 	});
 
-	it('still shows a placeholder for sections that are not migrated yet', async () => {
+	it('renders the Google Drive section when selected', async () => {
 		renderWithApp(Account, {
 			state: state({
 				loading: false,
@@ -91,7 +100,21 @@ describe('account page gating', () => {
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Google Drive' }));
 
-		expect(screen.getByRole('heading', { name: 'Google Drive' })).toBeInTheDocument();
-		expect(screen.getByText('This section has not been migrated yet.')).toBeInTheDocument();
+		expect(await screen.findByRole('button', { name: 'CONNECT' })).toBeInTheDocument();
+		expect(screen.queryByText('This section has not been migrated yet.')).toBeNull();
+	});
+
+	it('renders the Local Drive section when selected', async () => {
+		renderWithApp(Account, {
+			state: state({
+				loading: false,
+				isUser: true,
+				user: { name: 'Test User', bio: '', pic: '', photoStreamAlbumId: '' }
+			})
+		});
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Local Drive' }));
+
+		expect(await screen.findByRole('button', { name: 'UPLOAD PHOTOS' })).toBeInTheDocument();
 	});
 });
