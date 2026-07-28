@@ -11,7 +11,7 @@ vi.mock('$lib/api/services', () => ({
 		updateUserConfig: vi.fn(),
 		updatePhotostream: vi.fn()
 	},
-	guestsService: { isGuest: vi.fn(), getGuest: vi.fn() }
+	guestsService: { isGuest: vi.fn(), getGuest: vi.fn(), logoutGuest: vi.fn() }
 }));
 
 const mockUser: User = {
@@ -219,6 +219,33 @@ describe('AppState.refreshGuest', () => {
 		app.isGuest = true;
 		app.guest = mockGuest;
 		await app.refreshGuest();
+
+		expect(app.isGuest).toBe(false);
+		expect(app.guest).toBeUndefined();
+	});
+});
+
+describe('AppState.logoutGuest', () => {
+	it('clears guest state after logging out', async () => {
+		vi.mocked(guestsService.logoutGuest).mockResolvedValue({ authenticated: false });
+		const app = new AppState();
+		app.isGuest = true;
+		app.guest = mockGuest;
+
+		await app.logoutGuest();
+
+		expect(guestsService.logoutGuest).toHaveBeenCalled();
+		expect(app.isGuest).toBe(false);
+		expect(app.guest).toBeUndefined();
+	});
+
+	it('clears guest state even if the request fails', async () => {
+		vi.mocked(guestsService.logoutGuest).mockRejectedValue(new Error('nope'));
+		const app = new AppState();
+		app.isGuest = true;
+		app.guest = mockGuest;
+
+		await app.logoutGuest();
 
 		expect(app.isGuest).toBe(false);
 		expect(app.guest).toBeUndefined();
