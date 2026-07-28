@@ -23,7 +23,6 @@
 	<div class="mx-auto flex max-w-7xl items-center justify-center px-4 {paddingTop} {paddingBottom}">
 		<div class="flex-1"></div>
 		{@render footerLink('/about', 'About')}
-		{@render footerLink('/resume', 'Resume')}
 		{@render footerLink('/', 'Mellowtech.org')}
 		{@render footerLink('/account', 'Account')}
 		<div class="flex-1"></div>
