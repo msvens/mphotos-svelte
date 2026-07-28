@@ -76,7 +76,6 @@
 				class={link}>libvips</a
 			>
 		</li>
-		<li><a href="https://github.com/gorilla/mux" class={link}>gorilla mux</a></li>
 		<li><a href="https://github.com/gorilla/sessions" class={link}>gorilla sessions</a></li>
 	</ul>
 
