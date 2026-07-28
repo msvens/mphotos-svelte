@@ -28,6 +28,12 @@ beforeEach(() => {
 });
 
 describe('LocalDrive', () => {
+	it('restricts the file picker to JPEG', () => {
+		const { container } = renderWithApp(LocalDrive);
+		const input = container.querySelector('input[type="file"]');
+		expect(input).toHaveAttribute('accept', 'image/jpeg');
+	});
+
 	it('uploads each chosen file once, in order', async () => {
 		const { container } = renderWithApp(LocalDrive);
 		const [a, b] = [jpeg('a.jpg'), jpeg('b.jpg')];

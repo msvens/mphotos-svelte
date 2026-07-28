@@ -33,6 +33,7 @@
 	import { Icon, Heart } from 'svelte-hero-icons';
 	import { guestsService } from '$lib/api/services';
 	import { getAppState } from '$lib/stores/app.svelte';
+	import Tooltip from '$lib/components/ui/Tooltip.svelte';
 	import RegisterGuestDialog from '$lib/components/guest/RegisterGuestDialog.svelte';
 
 	interface PhotoLikesProps {
@@ -123,21 +124,23 @@
 </script>
 
 <div class="flex items-center space-x-3">
-	<button
-		type="button"
-		onclick={handleLikeClick}
-		disabled={isLoading}
-		class="cursor-pointer transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:opacity-50"
-		aria-label={likesPhoto ? 'Unlike photo' : 'Like photo'}
-	>
-		<Icon
-			src={Heart}
-			solid={likesPhoto}
-			class={likesPhoto
-				? 'h-6 w-6 text-[#b5043c]'
-				: 'h-6 w-6 text-gray-900 hover:text-gray-700 dark:text-white dark:hover:text-gray-200'}
-		/>
-	</button>
+	<Tooltip title={likesPhoto ? 'Unlike photo' : 'Like photo'} placement="top">
+		<button
+			type="button"
+			onclick={handleLikeClick}
+			disabled={isLoading}
+			class="cursor-pointer transition-transform hover:scale-110 disabled:cursor-not-allowed disabled:opacity-50"
+			aria-label={likesPhoto ? 'Unlike photo' : 'Like photo'}
+		>
+			<Icon
+				src={Heart}
+				solid={likesPhoto}
+				class={likesPhoto
+					? 'h-6 w-6 text-[#b5043c]'
+					: 'h-6 w-6 text-gray-900 hover:text-gray-700 dark:text-white dark:hover:text-gray-200'}
+			/>
+		</button>
+	</Tooltip>
 	<span class="text-sm text-gray-900 dark:text-white">{likesText}</span>
 </div>
 

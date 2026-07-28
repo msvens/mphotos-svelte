@@ -156,6 +156,9 @@
 		<Button onclick={handleOpenDownload} disabled={!authenticated || !folderId}>
 			IMPORT FROM DRIVE
 		</Button>
+		<p class="text-sm text-gray-600 dark:text-gray-400">
+			Only JPEG photos in the folder are imported.
+		</p>
 	</div>
 </div>
 

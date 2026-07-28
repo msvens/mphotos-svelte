@@ -8,6 +8,7 @@
 	import type { Album, PhotoMetadata } from '$lib/api/types';
 	import PageSpacing from '$lib/components/layout/PageSpacing.svelte';
 	import IconButton from '$lib/components/ui/IconButton.svelte';
+	import Tooltip from '$lib/components/ui/Tooltip.svelte';
 	import PhotoGrid from '$lib/components/photo/PhotoGrid.svelte';
 	import { copyAlbumLink } from '$lib/components/album/albumShare';
 
@@ -130,30 +131,33 @@
      (and its dark bar) is never rendered for guests. -->
 {#snippet ownerOverlay(photo: PhotoMetadata, index: number)}
 	<div class="flex items-center gap-1">
-		<button
-			onclick={() => movePhoto(index, true)}
-			title="Move left"
-			aria-label="Move left"
-			class="rounded p-1 hover:bg-white/20"
-		>
-			<Icon src={ChevronLeft} class="h-5 w-5 text-white" />
-		</button>
-		<button
-			onclick={() => movePhoto(index, false)}
-			title="Move right"
-			aria-label="Move right"
-			class="rounded p-1 hover:bg-white/20"
-		>
-			<Icon src={ChevronRight} class="h-5 w-5 text-white" />
-		</button>
-		<button
-			onclick={() => setCover(photo)}
-			title="Set as album cover"
-			aria-label="Set as album cover"
-			class="rounded p-1 hover:bg-white/20"
-		>
-			<Icon src={Photo} class="h-5 w-5 {isCover(photo) ? 'text-blue-400' : 'text-white'}" />
-		</button>
+		<Tooltip title="Move left" placement="top">
+			<button
+				onclick={() => movePhoto(index, true)}
+				aria-label="Move left"
+				class="rounded p-1 hover:bg-white/20"
+			>
+				<Icon src={ChevronLeft} class="h-5 w-5 text-white" />
+			</button>
+		</Tooltip>
+		<Tooltip title="Move right" placement="top">
+			<button
+				onclick={() => movePhoto(index, false)}
+				aria-label="Move right"
+				class="rounded p-1 hover:bg-white/20"
+			>
+				<Icon src={ChevronRight} class="h-5 w-5 text-white" />
+			</button>
+		</Tooltip>
+		<Tooltip title="Set as album cover" placement="top">
+			<button
+				onclick={() => setCover(photo)}
+				aria-label="Set as album cover"
+				class="rounded p-1 hover:bg-white/20"
+			>
+				<Icon src={Photo} class="h-5 w-5 {isCover(photo) ? 'text-blue-400' : 'text-white'}" />
+			</button>
+		</Tooltip>
 	</div>
 {/snippet}
 
