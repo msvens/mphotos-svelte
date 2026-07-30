@@ -58,7 +58,7 @@
 		<input
 			bind:this={fileInput}
 			type="file"
-			accept="image/jpeg,image/png"
+			accept="image/jpeg"
 			multiple
 			onchange={handleFileChange}
 			class="hidden"

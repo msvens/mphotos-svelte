@@ -9,6 +9,7 @@
 	import PhotoGrid from '$lib/components/photo/PhotoGrid.svelte';
 	import PhotoAlbumsDialog from '$lib/components/photo/PhotoAlbumsDialog.svelte';
 	import ToggleSwitch from '$lib/components/ui/ToggleSwitch.svelte';
+	import Tooltip from '$lib/components/ui/Tooltip.svelte';
 	import type { PhotoMetadata } from '$lib/api/types';
 
 	const app = getAppState();
@@ -59,21 +60,20 @@
 {#snippet streamOverlay(photo: PhotoMetadata)}
 	{@const inStream = photoState.streamIds.has(photo.id)}
 	<div class="flex items-center gap-2">
-		<button
-			onclick={() => openAlbums(photo)}
-			aria-label="Select albums"
-			title="Select albums"
-			class="cursor-pointer"
-		>
-			<Icon src={Folder} class="h-6 w-6 text-white" />
-		</button>
-		<button
-			onclick={() => toggleStream(photo)}
-			aria-label={inStream ? 'Remove from photostream' : 'Add to photostream'}
-			class="cursor-pointer"
-		>
-			<Icon src={inStream ? BookOpen : ArchiveBox} class="h-6 w-6 text-white" />
-		</button>
+		<Tooltip title="Select albums" placement="top">
+			<button onclick={() => openAlbums(photo)} aria-label="Select albums" class="cursor-pointer">
+				<Icon src={Folder} class="h-6 w-6 text-white" />
+			</button>
+		</Tooltip>
+		<Tooltip title={inStream ? 'Remove from photostream' : 'Add to photostream'} placement="top">
+			<button
+				onclick={() => toggleStream(photo)}
+				aria-label={inStream ? 'Remove from photostream' : 'Add to photostream'}
+				class="cursor-pointer"
+			>
+				<Icon src={inStream ? BookOpen : ArchiveBox} class="h-6 w-6 text-white" />
+			</button>
+		</Tooltip>
 	</div>
 {/snippet}
 

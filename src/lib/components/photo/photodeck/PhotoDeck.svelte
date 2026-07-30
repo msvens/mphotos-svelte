@@ -238,7 +238,8 @@
 			<IconButton
 				icon={ChevronLeft}
 				onclick={goPrevious}
-				ariaLabel="Previous photo"
+				title="Previous photo"
+				tooltipPlacement="right"
 				size="nav"
 				class={controlClass}
 			/>
@@ -247,7 +248,8 @@
 			<IconButton
 				icon={ChevronRight}
 				onclick={goNext}
-				ariaLabel="Next photo"
+				title="Next photo"
+				tooltipPlacement="left"
 				size="nav"
 				class={controlClass}
 			/>
@@ -288,7 +290,8 @@
 				<IconButton
 					icon={ChevronLeft}
 					onclick={goPrevious}
-					ariaLabel="Previous photo"
+					title="Previous photo"
+					tooltipPlacement="right"
 					size="nav"
 					background={alpha(cs.backgroundColor, 0.5)}
 					class={controlClass}
@@ -298,7 +301,8 @@
 				<IconButton
 					icon={ChevronRight}
 					onclick={goNext}
-					ariaLabel="Next photo"
+					title="Next photo"
+					tooltipPlacement="left"
 					size="nav"
 					background={alpha(cs.backgroundColor, 0.5)}
 					class={controlClass}

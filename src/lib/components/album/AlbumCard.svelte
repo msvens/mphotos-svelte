@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { Icon, Pencil, Trash, Share } from 'svelte-hero-icons';
 	import type { Album } from '$lib/api/types';
+	import Tooltip from '$lib/components/ui/Tooltip.svelte';
 
 	interface AlbumCardProps {
 		album: Album;
@@ -47,34 +48,37 @@
 	{#if onEdit || onDelete || onShare}
 		<div class="flex gap-2 px-4 pb-4">
 			{#if onShare}
-				<button
-					onclick={onShare}
-					aria-label="Copy share link"
-					title="Copy share link"
-					class="p-2 text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-				>
-					<Icon src={Share} class="h-5 w-5" />
-				</button>
+				<Tooltip title="Copy share link" placement="top">
+					<button
+						onclick={onShare}
+						aria-label="Copy share link"
+						class="p-2 text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+					>
+						<Icon src={Share} class="h-5 w-5" />
+					</button>
+				</Tooltip>
 			{/if}
 			{#if onEdit}
-				<button
-					onclick={onEdit}
-					aria-label="Edit album"
-					title="Edit album"
-					class="p-2 text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-				>
-					<Icon src={Pencil} class="h-5 w-5" />
-				</button>
+				<Tooltip title="Edit album" placement="top">
+					<button
+						onclick={onEdit}
+						aria-label="Edit album"
+						class="p-2 text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+					>
+						<Icon src={Pencil} class="h-5 w-5" />
+					</button>
+				</Tooltip>
 			{/if}
 			{#if onDelete}
-				<button
-					onclick={onDelete}
-					aria-label="Delete album"
-					title="Delete album"
-					class="p-2 text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
-				>
-					<Icon src={Trash} class="h-5 w-5" />
-				</button>
+				<Tooltip title="Delete album" placement="top">
+					<button
+						onclick={onDelete}
+						aria-label="Delete album"
+						class="p-2 text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+					>
+						<Icon src={Trash} class="h-5 w-5" />
+					</button>
+				</Tooltip>
 			{/if}
 		</div>
 	{/if}
