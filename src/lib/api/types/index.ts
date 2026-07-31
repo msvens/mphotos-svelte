@@ -98,13 +98,16 @@ export interface User {
 export interface Guest {
 	email: string;
 	name: string;
+	fullName: string;
+	description: string;
 	verified: boolean;
 	verifyTime: string;
 }
 
+// Public view returned by GET /api/likes/{id} — name + self-description, never email/fullName.
 export interface GuestReaction {
-	email: string;
 	name: string;
+	description: string;
 	kind: string;
 }
 
@@ -116,6 +119,7 @@ export interface PhotoComment {
 	id: number;
 	photoId: string;
 	name: string;
+	description: string;
 	time: string;
 	body: string;
 }

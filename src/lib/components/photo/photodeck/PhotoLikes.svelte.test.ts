@@ -17,11 +17,12 @@ vi.mock('$lib/api/services', () => ({
 		isGuest: vi.fn(),
 		getGuest: vi.fn(),
 		registerGuest: vi.fn(),
-		updateGuest: vi.fn()
+		loginGuest: vi.fn(),
+		loginVerifyGuest: vi.fn()
 	}
 }));
 
-const reaction = (name: string): GuestReaction => ({ name, email: `${name}@x.com`, kind: 'like' });
+const reaction = (name: string): GuestReaction => ({ name, description: '', kind: 'like' });
 
 function state(isGuest: boolean): AppState {
 	const s = new AppState();
@@ -141,19 +142,19 @@ describe('PhotoLikes', () => {
 	});
 
 	describe('as a stranger', () => {
-		it('offers registration instead of liking', async () => {
+		it('offers sign-in instead of liking', async () => {
 			renderWithApp(PhotoLikes, { state: state(false), props: { photoId: 'p1' } });
 
 			await fireEvent.click(heart());
 
-			expect(await screen.findByRole('heading', { name: 'Register User' })).toBeInTheDocument();
+			expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument();
 			expect(guestsService.likePhoto).not.toHaveBeenCalled();
 		});
 
 		it('closes the dialog again', async () => {
 			renderWithApp(PhotoLikes, { state: state(false), props: { photoId: 'p1' } });
 			await fireEvent.click(heart());
-			await screen.findByRole('heading', { name: 'Register User' });
+			await screen.findByRole('heading', { name: 'Log in' });
 
 			await fireEvent.click(screen.getByRole('button', { name: 'CANCEL' }));
 

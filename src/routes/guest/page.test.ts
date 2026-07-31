@@ -18,6 +18,8 @@ vi.mock('$lib/api/services', () => ({
 		verifyGuest: vi.fn(),
 		logoutGuest: vi.fn(),
 		registerGuest: vi.fn(),
+		loginGuest: vi.fn(),
+		loginVerifyGuest: vi.fn(),
 		updateGuest: vi.fn()
 	},
 	albumsService: { getAlbumPhotos: vi.fn() },
@@ -27,6 +29,8 @@ vi.mock('$lib/api/services', () => ({
 const guest = (over: Partial<Guest> = {}): Guest => ({
 	name: 'Ada',
 	email: 'ada@example.com',
+	fullName: '',
+	description: '',
 	verified: true,
 	verifyTime: '',
 	...over
@@ -52,59 +56,63 @@ beforeEach(() => {
 });
 
 describe('guest page', () => {
-	it('prompts registration for a non-guest', () => {
+	it('prompts sign-in for a visitor', () => {
 		renderWithApp(GuestPage, { state: state() });
-		expect(screen.getByRole('heading', { name: 'Register Guest' })).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: 'REGISTER / LOGIN' })).toBeInTheDocument();
+		expect(screen.getByRole('heading', { name: 'Guest access' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'SIGN IN' })).toBeInTheDocument();
 	});
 
-	it('shows the profile for a registered guest', () => {
-		renderWithApp(GuestPage, { state: state(guest()) });
+	it('shows the profile (name, full name, description) for a signed-in guest', () => {
+		renderWithApp(GuestPage, {
+			state: state(guest({ fullName: 'Ada Lovelace', description: 'maths' }))
+		});
 		expect(screen.getByRole('heading', { name: 'Welcome back, Ada!' })).toBeInTheDocument();
-		expect(screen.getByText(/registered as/)).toHaveTextContent('ada@example.com');
-		expect(screen.getByRole('button', { name: 'UPDATE GUEST' })).toBeInTheDocument();
-		expect(screen.getByRole('button', { name: 'LOGOUT GUEST' })).toBeInTheDocument();
-	});
-
-	it('nudges an unverified guest to check their email', () => {
-		renderWithApp(GuestPage, { state: state(guest({ verified: false })) });
-		expect(screen.getByText(/isn't verified yet/)).toBeInTheDocument();
-	});
-
-	it('does not show the unverified nudge once verified', () => {
-		renderWithApp(GuestPage, { state: state(guest({ verified: true })) });
-		expect(screen.queryByText(/isn't verified yet/)).toBeNull();
+		expect(screen.getByText(/signed in as/)).toBeInTheDocument();
+		expect(screen.getByText(/ada@example.com/)).toBeInTheDocument();
+		expect(screen.getByText('Ada Lovelace')).toBeInTheDocument();
+		expect(screen.getByText('maths')).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'UPDATE PROFILE' })).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'LOGOUT' })).toBeInTheDocument();
 	});
 
 	it('verifies from the ?code= link and thanks the guest', async () => {
-		page.url.searchParams.set('code', 'guest-uuid');
-		vi.mocked(guestsService.verifyGuest).mockResolvedValue(guest({ verified: true }));
-		// refreshGuest (called after verify) sees the now-verified guest.
+		page.url.searchParams.set('code', 'signup-token');
+		vi.mocked(guestsService.verifyGuest).mockResolvedValue(guest());
 		vi.mocked(guestsService.isGuest).mockResolvedValue(true);
-		vi.mocked(guestsService.getGuest).mockResolvedValue(guest({ verified: true }));
+		vi.mocked(guestsService.getGuest).mockResolvedValue(guest());
 
 		renderWithApp(GuestPage, { state: state() });
 
-		await vi.waitFor(() => expect(guestsService.verifyGuest).toHaveBeenCalledWith('guest-uuid'));
+		await vi.waitFor(() => expect(guestsService.verifyGuest).toHaveBeenCalledWith('signup-token'));
 		expect(
 			await screen.findByRole('heading', { name: 'Thank you for verifying, Ada!' })
 		).toBeInTheDocument();
 	});
 
-	it('logs out and returns to the register prompt', async () => {
-		renderWithApp(GuestPage, { state: state(guest()) });
+	it('shows an error when the verification link is invalid', async () => {
+		page.url.searchParams.set('code', 'bad');
+		vi.mocked(guestsService.verifyGuest).mockRejectedValue(new Error('expired'));
 
-		await fireEvent.click(screen.getByRole('button', { name: 'LOGOUT GUEST' }));
-
-		await vi.waitFor(() => expect(guestsService.logoutGuest).toHaveBeenCalled());
-		expect(await screen.findByRole('button', { name: 'REGISTER / LOGIN' })).toBeInTheDocument();
-	});
-
-	it('opens the register dialog', async () => {
 		renderWithApp(GuestPage, { state: state() });
 
-		await fireEvent.click(screen.getByRole('button', { name: 'REGISTER / LOGIN' }));
+		expect(await screen.findByText(/invalid or has expired/)).toBeInTheDocument();
+		expect(screen.getByRole('button', { name: 'SIGN IN' })).toBeInTheDocument();
+	});
 
-		expect(await screen.findByRole('heading', { name: 'Register User' })).toBeInTheDocument();
+	it('opens the sign-in dialog', async () => {
+		renderWithApp(GuestPage, { state: state() });
+
+		await fireEvent.click(screen.getByRole('button', { name: 'SIGN IN' }));
+
+		expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument();
+	});
+
+	it('logs out and returns to the sign-in prompt', async () => {
+		renderWithApp(GuestPage, { state: state(guest()) });
+
+		await fireEvent.click(screen.getByRole('button', { name: 'LOGOUT' }));
+
+		await vi.waitFor(() => expect(guestsService.logoutGuest).toHaveBeenCalled());
+		expect(await screen.findByRole('button', { name: 'SIGN IN' })).toBeInTheDocument();
 	});
 });

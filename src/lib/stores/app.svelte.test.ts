@@ -24,6 +24,8 @@ const serverConfig: Partial<UXConfig> = { photoGridCols: 5, colorTheme: 'light' 
 const mockGuest: Guest = {
 	name: 'Test Guest',
 	email: 'guest@example.com',
+	fullName: '',
+	description: '',
 	verified: true,
 	verifyTime: ''
 };

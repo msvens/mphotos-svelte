@@ -42,6 +42,8 @@ export const API_ENDPOINTS = {
 	// Guests
 	guest: '/api/guest',
 	guestVerify: '/api/guest/verify',
+	guestLogin: '/api/guest/login',
+	guestLoginVerify: '/api/guest/login/verify',
 	guestUpdate: '/api/guest/update',
 	guestIs: '/api/guest/is',
 	guestLogout: '/api/guest/logout',

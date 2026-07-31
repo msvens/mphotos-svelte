@@ -16,6 +16,8 @@ vi.mock('../../../api/client', () => ({
 const mockGuest = {
 	email: 'guest@test.com',
 	name: 'Guest',
+	fullName: '',
+	description: '',
 	verified: true,
 	verifyTime: '2024-01-01'
 };
@@ -27,12 +29,19 @@ describe('guestsService', () => {
 		vi.mocked(api.put).mockReset();
 	});
 
-	it('registerGuest sends PUT with params', async () => {
+	it('registerGuest sends PUT with signup params', async () => {
 		vi.mocked(api.put).mockResolvedValue(mockGuest);
-		await guestsService.registerGuest({ name: 'Guest', email: 'guest@test.com' });
-		expect(api.put).toHaveBeenCalledWith(API_ENDPOINTS.guest, {
+		await guestsService.registerGuest({
+			email: 'guest@test.com',
 			name: 'Guest',
-			email: 'guest@test.com'
+			fullName: 'The Guest',
+			description: 'hi'
+		});
+		expect(api.put).toHaveBeenCalledWith(API_ENDPOINTS.guest, {
+			email: 'guest@test.com',
+			name: 'Guest',
+			fullName: 'The Guest',
+			description: 'hi'
 		});
 	});
 
@@ -42,12 +51,29 @@ describe('guestsService', () => {
 		expect(api.get).toHaveBeenCalledWith(API_ENDPOINTS.guestVerify, { params: { code: 'abc123' } });
 	});
 
-	it('updateGuest sends PUT', async () => {
+	it('loginGuest requests a code by email', async () => {
+		vi.mocked(api.put).mockResolvedValue({ message: 'sent' });
+		const res = await guestsService.loginGuest('guest@test.com');
+		expect(api.put).toHaveBeenCalledWith(API_ENDPOINTS.guestLogin, { email: 'guest@test.com' });
+		expect(res).toEqual({ message: 'sent' });
+	});
+
+	it('loginVerifyGuest consumes the code and signs in', async () => {
 		vi.mocked(api.put).mockResolvedValue(mockGuest);
-		await guestsService.updateGuest({ name: 'New Name', email: 'new@test.com' });
+		await guestsService.loginVerifyGuest('guest@test.com', '123456');
+		expect(api.put).toHaveBeenCalledWith(API_ENDPOINTS.guestLoginVerify, {
+			email: 'guest@test.com',
+			code: '123456'
+		});
+	});
+
+	it('updateGuest sends PUT with profile fields (no email)', async () => {
+		vi.mocked(api.put).mockResolvedValue(mockGuest);
+		await guestsService.updateGuest({ name: 'New Name', fullName: 'New Full', description: 'd' });
 		expect(api.put).toHaveBeenCalledWith(API_ENDPOINTS.guestUpdate, {
 			name: 'New Name',
-			email: 'new@test.com'
+			fullName: 'New Full',
+			description: 'd'
 		});
 	});
 

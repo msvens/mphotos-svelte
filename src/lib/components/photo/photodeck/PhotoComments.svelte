@@ -1,8 +1,9 @@
 <script lang="ts">
 	import { guestsService } from '$lib/api/services';
+	import { ApiError } from '$lib/api/client';
 	import { getAppState } from '$lib/stores/app.svelte';
 	import type { PhotoComment } from '$lib/api/types';
-	import RegisterGuestDialog from '$lib/components/guest/RegisterGuestDialog.svelte';
+	import GuestSignInDialog from '$lib/components/guest/GuestSignInDialog.svelte';
 
 	interface PhotoCommentsProps {
 		photoId: string;
@@ -14,7 +15,7 @@
 
 	let comments = $state<PhotoComment[]>([]);
 	let newComment = $state('');
-	let showRegisterDialog = $state(false);
+	let showSignIn = $state(false);
 	let isPosting = $state(false);
 	let isLoadingComments = $state(true);
 
@@ -40,9 +41,9 @@
 
 	async function handlePostComment() {
 		if (!newComment.trim() || isPosting) return;
-		// Commenting requires a registered guest; anyone else gets the sign-up dialog.
+		// Commenting requires a signed-in guest; anyone else gets the sign-in dialog.
 		if (!app.isGuest) {
-			showRegisterDialog = true;
+			showSignIn = true;
 			return;
 		}
 
@@ -52,10 +53,21 @@
 			comments = [...comments, comment];
 			newComment = '';
 		} catch (e) {
-			console.error('Error posting comment:', e);
+			if (e instanceof ApiError && e.status === 401) {
+				// The 30-day guest session lapsed — reflect that and prompt a fresh code login.
+				await app.refreshGuest();
+				showSignIn = true;
+			} else {
+				console.error('Error posting comment:', e);
+			}
 		} finally {
 			isPosting = false;
 		}
+	}
+
+	async function closeSignIn(signedIn?: boolean) {
+		showSignIn = false;
+		if (signedIn) await app.refreshGuest();
 	}
 
 	const formatDate = (timeString: string) =>
@@ -93,16 +105,22 @@
 	{:else}
 		{#each comments as comment (comment.id)}
 			<div class="mr-2">
-				<div class="text-sm text-gray-600 dark:text-gray-400">
-					{comment.name}, {formatDate(comment.time)}
+				<!-- Author is the anchor (medium/primary); date + bio recede below it, each on its
+				     own line so a long bio wraps instead of truncating. -->
+				<div class="text-sm">
+					<span class="font-medium text-gray-900 dark:text-white">{comment.name}</span><span
+						class="text-gray-500 dark:text-gray-500">, {formatDate(comment.time)}</span
+					>
 				</div>
-				<div class="mt-1 text-sm text-gray-900 dark:text-white">{comment.body}</div>
+				{#if comment.description}
+					<div class="text-xs text-gray-500 dark:text-gray-500">{comment.description}</div>
+				{/if}
+				<div class="mt-0.5 text-sm text-gray-800 dark:text-gray-200">{comment.body}</div>
 			</div>
 		{/each}
 	{/if}
 </div>
 
-{#if showRegisterDialog}
-	<!-- Registration finishes via the emailed link, so there's nothing to refresh here. -->
-	<RegisterGuestDialog onClose={() => (showRegisterDialog = false)} />
+{#if showSignIn}
+	<GuestSignInDialog onClose={closeSignIn} />
 {/if}
