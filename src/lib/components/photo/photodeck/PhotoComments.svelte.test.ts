@@ -15,12 +15,13 @@ vi.mock('$lib/api/services', () => ({
 		isGuest: vi.fn(),
 		getGuest: vi.fn(),
 		registerGuest: vi.fn(),
-		updateGuest: vi.fn()
+		loginGuest: vi.fn(),
+		loginVerifyGuest: vi.fn()
 	}
 }));
 
-function comment(id: number, body: string): PhotoComment {
-	return { id, photoId: 'p1', name: 'Ann', time: '2026-03-04T10:00:00Z', body };
+function comment(id: number, body: string, description = ''): PhotoComment {
+	return { id, photoId: 'p1', name: 'Ann', description, time: '2026-03-04T10:00:00Z', body };
 }
 
 function state(isGuest: boolean, loading = false): AppState {
@@ -63,6 +64,15 @@ describe('PhotoComments', () => {
 
 			expect(await screen.findByText('Lovely light')).toBeInTheDocument();
 			expect(screen.getByText('Ann, Mar 4, 2026')).toBeInTheDocument();
+		});
+
+		it("shows a commenter's description when present", async () => {
+			vi.mocked(guestsService.getPhotoComments).mockResolvedValue([
+				comment(1, 'Lovely light', 'film photographer')
+			]);
+			renderWithApp(PhotoComments, { state: state(false), props: { photoId: 'p1' } });
+
+			expect(await screen.findByText('film photographer')).toBeInTheDocument();
 		});
 
 		it('copes with a failed fetch', async () => {
@@ -126,7 +136,7 @@ describe('PhotoComments', () => {
 
 			await fireEvent.click(post());
 
-			expect(await screen.findByRole('heading', { name: 'Register User' })).toBeInTheDocument();
+			expect(await screen.findByRole('heading', { name: 'Log in' })).toBeInTheDocument();
 			expect(guestsService.commentPhoto).not.toHaveBeenCalled();
 		});
 
@@ -134,7 +144,7 @@ describe('PhotoComments', () => {
 			renderWithApp(PhotoComments, { state: state(false), props: { photoId: 'p1' } });
 			await fireEvent.input(box(), { target: { value: 'Nice shot' } });
 			await fireEvent.click(post());
-			await screen.findByRole('heading', { name: 'Register User' });
+			await screen.findByRole('heading', { name: 'Log in' });
 
 			await fireEvent.click(screen.getByRole('button', { name: 'CANCEL' }));
 

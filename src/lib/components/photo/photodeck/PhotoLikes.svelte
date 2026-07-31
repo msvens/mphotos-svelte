@@ -32,9 +32,10 @@
 <script lang="ts">
 	import { Icon, Heart } from 'svelte-hero-icons';
 	import { guestsService } from '$lib/api/services';
+	import { ApiError } from '$lib/api/client';
 	import { getAppState } from '$lib/stores/app.svelte';
 	import Tooltip from '$lib/components/ui/Tooltip.svelte';
-	import RegisterGuestDialog from '$lib/components/guest/RegisterGuestDialog.svelte';
+	import GuestSignInDialog from '$lib/components/guest/GuestSignInDialog.svelte';
 
 	interface PhotoLikesProps {
 		photoId: string;
@@ -46,7 +47,7 @@
 
 	let likesPhoto = $state(false);
 	let guests = $state<GuestReaction[]>([]);
-	let showRegisterDialog = $state(false);
+	let showSignIn = $state(false);
 	let isLoading = $state(false);
 
 	let likesText = $derived(getLikesText(likesPhoto, guests));
@@ -99,9 +100,9 @@
 
 	async function handleLikeClick() {
 		if (isLoading) return;
-		// Liking requires a registered guest; anyone else gets the sign-up dialog.
+		// Liking requires a signed-in guest; anyone else gets the sign-in dialog.
 		if (!app.isGuest) {
-			showRegisterDialog = true;
+			showSignIn = true;
 			return;
 		}
 
@@ -116,9 +117,23 @@
 			}
 			await refreshLikes();
 		} catch (e) {
-			console.error('Error toggling like:', e);
+			if (e instanceof ApiError && e.status === 401) {
+				// The 30-day guest session lapsed — reflect that and prompt a fresh code login.
+				await app.refreshGuest();
+				showSignIn = true;
+			} else {
+				console.error('Error toggling like:', e);
+			}
 		} finally {
 			isLoading = false;
+		}
+	}
+
+	async function closeSignIn(signedIn?: boolean) {
+		showSignIn = false;
+		if (signedIn) {
+			await app.refreshGuest();
+			await refreshLikes();
 		}
 	}
 </script>
@@ -144,7 +159,6 @@
 	<span class="text-sm text-gray-900 dark:text-white">{likesText}</span>
 </div>
 
-{#if showRegisterDialog}
-	<!-- Registration finishes via the emailed link, so there's nothing to refresh here. -->
-	<RegisterGuestDialog onClose={() => (showRegisterDialog = false)} />
+{#if showSignIn}
+	<GuestSignInDialog onClose={closeSignIn} />
 {/if}

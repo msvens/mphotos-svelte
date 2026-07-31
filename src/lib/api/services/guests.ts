@@ -3,18 +3,25 @@ import { API_ENDPOINTS } from '../config';
 import { api } from '../client';
 
 export interface RegisterGuestParams {
-	name: string;
 	email: string;
+	name: string;
+	fullName?: string;
+	description?: string;
 }
 
 export interface UpdateGuestParams {
 	name: string;
-	email: string;
+	fullName?: string;
+	description?: string;
 }
 
 export interface GuestsService {
 	registerGuest(params: RegisterGuestParams): Promise<Guest>;
 	verifyGuest(code: string): Promise<Guest>;
+	/** Request a 6-digit login code by email. Always resolves with a neutral message. */
+	loginGuest(email: string): Promise<{ message: string }>;
+	/** Consume the emailed login code and sign in. */
+	loginVerifyGuest(email: string, code: string): Promise<Guest>;
 	updateGuest(params: UpdateGuestParams): Promise<Guest>;
 	getGuest(): Promise<Guest>;
 	isGuest(): Promise<boolean>;
@@ -35,6 +42,14 @@ export const guestsService: GuestsService = {
 
 	async verifyGuest(code: string): Promise<Guest> {
 		return api.get<Guest>(API_ENDPOINTS.guestVerify, { params: { code } });
+	},
+
+	async loginGuest(email: string): Promise<{ message: string }> {
+		return api.put<{ message: string }>(API_ENDPOINTS.guestLogin, { email });
+	},
+
+	async loginVerifyGuest(email: string, code: string): Promise<Guest> {
+		return api.put<Guest>(API_ENDPOINTS.guestLoginVerify, { email, code });
 	},
 
 	async updateGuest(params: UpdateGuestParams): Promise<Guest> {
