@@ -105,13 +105,17 @@
 	{:else}
 		{#each comments as comment (comment.id)}
 			<div class="mr-2">
-				<div class="text-sm text-gray-600 dark:text-gray-400">
-					{comment.name}, {formatDate(comment.time)}
+				<!-- Author is the anchor (medium/primary); date + bio recede below it, each on its
+				     own line so a long bio wraps instead of truncating. -->
+				<div class="text-sm">
+					<span class="font-medium text-gray-900 dark:text-white">{comment.name}</span><span
+						class="text-gray-500 dark:text-gray-500">, {formatDate(comment.time)}</span
+					>
 				</div>
 				{#if comment.description}
 					<div class="text-xs text-gray-500 dark:text-gray-500">{comment.description}</div>
 				{/if}
-				<div class="mt-1 text-sm text-gray-900 dark:text-white">{comment.body}</div>
+				<div class="mt-0.5 text-sm text-gray-800 dark:text-gray-200">{comment.body}</div>
 			</div>
 		{/each}
 	{/if}

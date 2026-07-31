@@ -63,7 +63,8 @@ describe('PhotoComments', () => {
 			renderWithApp(PhotoComments, { state: state(false), props: { photoId: 'p1' } });
 
 			expect(await screen.findByText('Lovely light')).toBeInTheDocument();
-			expect(screen.getByText('Ann, Mar 4, 2026')).toBeInTheDocument();
+			expect(screen.getByText('Ann')).toBeInTheDocument();
+			expect(screen.getByText(/Mar 4, 2026/)).toBeInTheDocument();
 		});
 
 		it("shows a commenter's description when present", async () => {
@@ -72,7 +73,7 @@ describe('PhotoComments', () => {
 			]);
 			renderWithApp(PhotoComments, { state: state(false), props: { photoId: 'p1' } });
 
-			expect(await screen.findByText('film photographer')).toBeInTheDocument();
+			expect(await screen.findByText(/film photographer/)).toBeInTheDocument();
 		});
 
 		it('copes with a failed fetch', async () => {
