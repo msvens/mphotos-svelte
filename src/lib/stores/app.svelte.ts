@@ -13,7 +13,6 @@ export const defaultUXConfig: UXConfig = {
 	showBio: true,
 	photoBackgroundColor: Colors.Black,
 	photoBorders: 'none',
-	colorTheme: 'dark',
 	denseTopBar: false,
 	denseBottomBar: false,
 	windowFullScreen: false

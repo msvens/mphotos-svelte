@@ -38,11 +38,6 @@
 		{ value: 'all', label: 'All' }
 	];
 
-	const themeOptions: RadioOption[] = [
-		{ value: 'light', label: 'Light' },
-		{ value: 'dark', label: 'Dark' }
-	];
-
 	// Each field is *seeded* from the store and re-seeded whenever it changes: editing a
 	// control overrides the derived value, and saving (which reassigns `app.uxConfig`)
 	// drops the overrides. That's the rune equivalent of the React original's
@@ -63,7 +58,6 @@
 	let denseBottomBar = $derived(app.uxConfig.denseBottomBar);
 	let photoBackground = $derived(app.uxConfig.photoBackgroundColor);
 	let photoBorders = $derived(app.uxConfig.photoBorders);
-	let theme = $derived(app.uxConfig.colorTheme);
 
 	let albums = $state<Album[]>([]);
 	let saving = $state(false);
@@ -95,7 +89,6 @@
 				windowFullScreen: app.uxConfig.windowFullScreen,
 				showBio,
 				photoBackgroundColor: photoBackground,
-				colorTheme: theme,
 				denseTopBar,
 				denseBottomBar,
 				photoBorders
@@ -153,7 +146,6 @@
 	<div class="grid grid-cols-3 gap-8 py-4">
 		<RadioGroup label="Photo Background" bind:value={photoBackground} options={backgrounds} />
 		<RadioGroup label="Photo Borders" bind:value={photoBorders} options={borderOptions} />
-		<RadioGroup label="Site Theme" bind:value={theme} options={themeOptions} />
 	</div>
 
 	<div class="pt-4">

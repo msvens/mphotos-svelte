@@ -129,7 +129,8 @@ export interface Config {
 	driveConfigured: boolean;
 }
 
-// User-facing UI/theme configuration returned by /api/user/config.
+// User-facing UI configuration returned by /api/user/config. Theme is no longer part of this —
+// it's a per-visitor browser preference (see lib/stores/theme.svelte.ts).
 export interface UXConfig {
 	photoGridCols: number;
 	photoItemsLoad: number; // DEPRECATED: No longer used, kept for backwards compatibility with old configs
@@ -137,7 +138,6 @@ export interface UXConfig {
 	showBio: boolean;
 	photoBackgroundColor: string;
 	photoBorders: 'none' | 'all' | 'left-right';
-	colorTheme: 'light' | 'dark';
 	denseTopBar: boolean;
 	denseBottomBar: boolean;
 	windowFullScreen: boolean;
