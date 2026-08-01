@@ -55,8 +55,7 @@ describe('UxConfig', () => {
 					showBio: true,
 					denseTopBar: true,
 					denseBottomBar: false,
-					photoBorders: 'all',
-					colorTheme: 'light'
+					photoBorders: 'all'
 				})
 			});
 

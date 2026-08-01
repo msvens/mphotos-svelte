@@ -20,7 +20,7 @@ const mockUser: User = {
 	pic: '/test-pic.jpg',
 	photoStreamAlbumId: ''
 };
-const serverConfig: Partial<UXConfig> = { photoGridCols: 5, colorTheme: 'light' };
+const serverConfig: Partial<UXConfig> = { photoGridCols: 5, photoGridSpacing: 10 };
 const mockGuest: Guest = {
 	name: 'Test Guest',
 	email: 'guest@example.com',
@@ -56,7 +56,7 @@ describe('AppState.refreshAuth', () => {
 		expect(app.user).toEqual(mockUser);
 		// Server values override, unspecified keys keep defaults.
 		expect(app.uxConfig.photoGridCols).toBe(5);
-		expect(app.uxConfig.colorTheme).toBe('light');
+		expect(app.uxConfig.photoGridSpacing).toBe(10);
 		expect(app.uxConfig.photoBorders).toBe(defaultUXConfig.photoBorders);
 	});
 
@@ -128,7 +128,7 @@ describe('AppState.login / logout', () => {
 });
 
 describe('AppState.updateUXConfig', () => {
-	const newConfig: UXConfig = { ...defaultUXConfig, photoGridCols: 5, colorTheme: 'light' };
+	const newConfig: UXConfig = { ...defaultUXConfig, photoGridCols: 5 };
 
 	it('sends the config as given', async () => {
 		vi.mocked(userService.updateUserConfig).mockResolvedValue(mockUser);

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi } from 'vitest';
-import { screen } from '@testing-library/svelte';
+import { screen, fireEvent } from '@testing-library/svelte';
 import { AppState } from '$lib/stores/app.svelte';
+import { theme } from '$lib/stores/theme.svelte';
 import { renderWithApp } from '$lib/test-utils';
 import Navbar from './Navbar.svelte';
 
@@ -53,5 +54,24 @@ describe('Navbar', () => {
 		const homeButton = screen.getByRole('button', { name: 'Home' });
 		expect(homeButton.className).toContain('w-10');
 		expect(homeButton.className).toContain('h-10');
+	});
+
+	// The theme singleton defaults to 'light' (no stored choice, matchMedia matches nothing),
+	// so the button offers to switch *to* dark. These run last as the toggle mutates it.
+	it('offers a theme toggle', () => {
+		renderWithApp(Navbar);
+
+		expect(screen.getByRole('button', { name: 'Switch to dark theme' })).toBeInTheDocument();
+	});
+
+	it('flips the theme when the toggle is clicked', async () => {
+		renderWithApp(Navbar);
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Switch to dark theme' }));
+
+		expect(theme.resolved).toBe('dark');
+		expect(
+			await screen.findByRole('button', { name: 'Switch to light theme' })
+		).toBeInTheDocument();
 	});
 });

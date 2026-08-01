@@ -27,7 +27,6 @@ const mockConfig: UXConfig = {
 	showBio: true,
 	photoBackgroundColor: '#121212',
 	photoBorders: 'none',
-	colorTheme: 'dark',
 	denseTopBar: false,
 	denseBottomBar: false,
 	windowFullScreen: false

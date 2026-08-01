@@ -5,6 +5,7 @@
 	import { setAppState } from '$lib/stores/app.svelte';
 	import { setToastState } from '$lib/stores/toast.svelte';
 	import { setPhotoState } from '$lib/stores/photos.svelte';
+	import { theme, initTheme } from '$lib/stores/theme.svelte';
 	import Navbar from '$lib/components/layout/Navbar.svelte';
 	import Footer from '$lib/components/layout/Footer.svelte';
 	import ToastContainer from '$lib/components/ui/toast/ToastContainer.svelte';
@@ -15,11 +16,15 @@
 	setToastState();
 	setPhotoState();
 
-	onMount(() => app.init());
+	onMount(() => {
+		app.init();
+		initTheme();
+	});
 
-	// Apply the theme derived from UX config to <html> (Tailwind class-based dark mode).
+	// Apply the visitor's resolved theme to <html> (Tailwind class-based dark mode). Reruns on
+	// toggle and on OS changes; the app.html script already set this before first paint.
 	$effect(() => {
-		document.documentElement.classList.toggle('dark', app.uxConfig.colorTheme === 'dark');
+		document.documentElement.classList.toggle('dark', theme.resolved === 'dark');
 	});
 </script>
 
