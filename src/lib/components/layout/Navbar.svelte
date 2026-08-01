@@ -41,16 +41,6 @@
 
 			<!-- Navigation icons - right aligned -->
 			<div class="flex items-center pr-1">
-				<!-- Theme toggle - visible on desktop and mobile; each visitor's own choice -->
-				<IconButton
-					icon={theme.resolved === 'dark' ? Sun : Moon}
-					onclick={() => theme.toggle()}
-					title={theme.resolved === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
-					tooltipPlacement="bottom"
-					size={iconSize}
-					class="bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
-				/>
-
 				<div class="hidden md:flex md:space-x-1">
 					{#each navigation as item (item.name)}
 						{@const active = isActiveRoute(page.url.pathname, item.href)}
@@ -79,6 +69,16 @@
 						class="bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
 					/>
 				</div>
+
+				<!-- Theme toggle - far right, visible on desktop and mobile; each visitor's own choice -->
+				<IconButton
+					icon={theme.resolved === 'dark' ? Sun : Moon}
+					onclick={() => theme.toggle()}
+					title={theme.resolved === 'dark' ? 'Switch to light theme' : 'Switch to dark theme'}
+					tooltipPlacement="bottom"
+					size={iconSize}
+					class="bg-transparent text-gray-600 hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-white"
+				/>
 			</div>
 		</div>
 	</div>
