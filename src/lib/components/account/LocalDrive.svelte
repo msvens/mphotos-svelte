@@ -20,8 +20,8 @@
 		uploading = true;
 		let uploaded = 0;
 		const total = files.length;
-		// Sequential: the server dedups by md5 and rejects non-jpeg per file, so a failed file
-		// (e.g. a duplicate) must not abort the batch.
+		// Sequential: the server dedups by md5 and rejects unsupported types per file, so a failed
+		// file (e.g. a duplicate) must not abort the batch.
 		for (let i = 0; i < total; i++) {
 			const file = files[i];
 			progress = { current: i + 1, total, fileName: file.name };
@@ -51,14 +51,15 @@
 	<div class="space-y-4">
 		<h3 class="text-lg font-medium text-gray-900 dark:text-white">Upload Photos</h3>
 		<p class="text-sm text-gray-600 dark:text-gray-400">
-			Choose one or more JPEG photos to upload. Files already in the service (matched by content)
-			are skipped automatically.
+			Choose one or more photos to upload — JPEG, PNG, GIF, TIFF or BMP. Non-JPEG files are
+			converted to JPEG on the server, and animated GIFs are saved as a single still frame. Files
+			already in the service (matched by content) are skipped automatically.
 		</p>
 
 		<input
 			bind:this={fileInput}
 			type="file"
-			accept="image/jpeg"
+			accept="image/jpeg,image/png,image/gif,image/tiff,image/bmp"
 			multiple
 			onchange={handleFileChange}
 			class="hidden"

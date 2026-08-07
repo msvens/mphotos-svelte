@@ -28,10 +28,10 @@ beforeEach(() => {
 });
 
 describe('LocalDrive', () => {
-	it('restricts the file picker to JPEG', () => {
+	it('restricts the file picker to supported image formats', () => {
 		const { container } = renderWithApp(LocalDrive);
 		const input = container.querySelector('input[type="file"]');
-		expect(input).toHaveAttribute('accept', 'image/jpeg');
+		expect(input).toHaveAttribute('accept', 'image/jpeg,image/png,image/gif,image/tiff,image/bmp');
 	});
 
 	it('uploads each chosen file once, in order', async () => {
