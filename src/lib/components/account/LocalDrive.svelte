@@ -1,8 +1,12 @@
 <script lang="ts">
 	import { photosService } from '$lib/api/services';
+	import { getAppState } from '$lib/stores/app.svelte';
+	import { getPhotoState } from '$lib/stores/photos.svelte';
 	import { getToastState } from '$lib/stores/toast.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
 
+	const app = getAppState();
+	const photoState = getPhotoState();
 	const toast = getToastState();
 
 	let files = $state<File[]>([]);
@@ -36,6 +40,12 @@
 		progress = null;
 		files = [];
 		if (fileInput) fileInput.value = '';
+
+		// The cached photo list predates these uploads; force a refresh so they appear in the
+		// stream and photo deck without a full page reload.
+		if (uploaded > 0) {
+			await photoState.load(app.isUser, app.user.photoStreamAlbumId, true);
+		}
 
 		if (uploaded === total) {
 			toast.success(`Uploaded ${uploaded} of ${total} photos`);

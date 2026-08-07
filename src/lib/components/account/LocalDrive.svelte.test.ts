@@ -59,6 +59,31 @@ describe('LocalDrive', () => {
 		await vi.waitFor(() => expect(toast.toasts[0]?.severity).toBe('warning'));
 	});
 
+	it('refreshes the photo list after a successful upload', async () => {
+		// Without this, new uploads sit outside the cached list until a full reload — they
+		// go missing from the stream, and clicking one from a filtered view opens the wrong photo.
+		const { container, state, photos } = renderWithApp(LocalDrive);
+		const load = vi.spyOn(photos, 'load').mockResolvedValue(undefined);
+
+		await pickFiles(container, [jpeg('a.jpg')]);
+		await fireEvent.click(screen.getByRole('button', { name: 'UPLOAD PHOTOS' }));
+
+		await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalled());
+		expect(load).toHaveBeenCalledWith(state.isUser, state.user.photoStreamAlbumId, true);
+	});
+
+	it('does not refresh when every upload fails', async () => {
+		vi.mocked(photosService.uploadLocalPhoto).mockRejectedValue(new Error('Photo already exists'));
+		const { container, photos } = renderWithApp(LocalDrive);
+		const load = vi.spyOn(photos, 'load').mockResolvedValue(undefined);
+
+		await pickFiles(container, [jpeg('a.jpg')]);
+		await fireEvent.click(screen.getByRole('button', { name: 'UPLOAD PHOTOS' }));
+
+		await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalled());
+		expect(load).not.toHaveBeenCalled();
+	});
+
 	it('disables upload until files are chosen', () => {
 		renderWithApp(LocalDrive);
 		expect(screen.getByRole('button', { name: 'UPLOAD PHOTOS' })).toBeDisabled();

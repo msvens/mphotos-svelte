@@ -123,9 +123,12 @@ describe('PhotoDeck', () => {
 		expect(screen.getByAltText('Title b')).toBeInTheDocument();
 	});
 
-	it('falls back to the first photo for an unknown id', () => {
+	it('shows a not-found message for an unknown id, not the first photo', () => {
+		// Silently showing photos[0] made a click on a photo missing from a stale list look
+		// like it opened a different picture. An unknown id must be an honest dead end.
 		renderWithApp(PhotoDeck, { state: appState(), props: { ...base, photoId: 'nope' } });
-		expect(screen.getByAltText('Title a')).toBeInTheDocument();
+		expect(screen.getByText('Photo not found.')).toBeInTheDocument();
+		expect(screen.queryByAltText('Title a')).toBeNull();
 	});
 
 	describe('the url owns the photo', () => {
