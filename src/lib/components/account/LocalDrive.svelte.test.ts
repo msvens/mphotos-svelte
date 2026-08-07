@@ -46,7 +46,7 @@ describe('LocalDrive', () => {
 		expect(photosService.uploadLocalPhoto).toHaveBeenNthCalledWith(2, b);
 	});
 
-	it('keeps going when a file fails and warns about the skips', async () => {
+	it('reports already-uploaded files as skipped, not failed', async () => {
 		vi.mocked(photosService.uploadLocalPhoto)
 			.mockRejectedValueOnce(new Error('Photo already exists'))
 			.mockResolvedValue({} as PhotoMetadata);
@@ -56,7 +56,23 @@ describe('LocalDrive', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'UPLOAD PHOTOS' }));
 
 		await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalledTimes(2));
-		await vi.waitFor(() => expect(toast.toasts[0]?.severity).toBe('warning'));
+		// A duplicate is benign: informational, and named as a skip.
+		await vi.waitFor(() => expect(toast.toasts[0]?.severity).toBe('info'));
+		expect(toast.toasts[0].message).toBe('Uploaded 1, skipped 1 already uploaded.');
+	});
+
+	it('flags genuine failures as an error', async () => {
+		vi.mocked(photosService.uploadLocalPhoto)
+			.mockRejectedValueOnce(new Error('boom'))
+			.mockResolvedValue({} as PhotoMetadata);
+		const { container, toast } = renderWithApp(LocalDrive);
+
+		await pickFiles(container, [jpeg('a.jpg'), jpeg('b.jpg')]);
+		await fireEvent.click(screen.getByRole('button', { name: 'UPLOAD PHOTOS' }));
+
+		await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalledTimes(2));
+		await vi.waitFor(() => expect(toast.toasts[0]?.severity).toBe('error'));
+		expect(toast.toasts[0].message).toBe('Uploaded 1, failed 1.');
 	});
 
 	it('refreshes the photo list after a successful upload', async () => {
@@ -72,7 +88,7 @@ describe('LocalDrive', () => {
 		expect(load).toHaveBeenCalledWith(state.isUser, state.user.photoStreamAlbumId, true);
 	});
 
-	it('does not refresh when every upload fails', async () => {
+	it('does not refresh when nothing new is uploaded', async () => {
 		vi.mocked(photosService.uploadLocalPhoto).mockRejectedValue(new Error('Photo already exists'));
 		const { container, photos } = renderWithApp(LocalDrive);
 		const load = vi.spyOn(photos, 'load').mockResolvedValue(undefined);

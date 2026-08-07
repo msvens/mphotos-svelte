@@ -23,8 +23,10 @@
 		if (files.length === 0) return;
 		uploading = true;
 		let uploaded = 0;
+		let duplicates = 0;
+		let failed = 0;
 		const total = files.length;
-		// Sequential: the server dedups by md5 and rejects unsupported types per file, so a failed
+		// Sequential: the server dedups by md5 and rejects unsupported types per file, so one bad
 		// file (e.g. a duplicate) must not abort the batch.
 		for (let i = 0; i < total; i++) {
 			const file = files[i];
@@ -33,6 +35,10 @@
 				await photosService.uploadLocalPhoto(file);
 				uploaded++;
 			} catch (e) {
+				// The server rejects an already-stored image (matched by md5) with this message;
+				// count those as skips rather than failures so the summary can tell them apart.
+				if (e instanceof Error && /already exists/i.test(e.message)) duplicates++;
+				else failed++;
 				console.error(`Error uploading ${file.name}:`, e);
 			}
 		}
@@ -47,13 +53,24 @@
 			await photoState.load(app.isUser, app.user.photoStreamAlbumId, true);
 		}
 
+		reportOutcome(uploaded, duplicates, failed, total);
+	}
+
+	/** Toast a summary that names already-uploaded skips and genuine failures separately. */
+	function reportOutcome(uploaded: number, duplicates: number, failed: number, total: number) {
 		if (uploaded === total) {
-			toast.success(`Uploaded ${uploaded} of ${total} photos`);
-		} else {
-			toast.warning(
-				`Uploaded ${uploaded} of ${total} photos — ${total - uploaded} skipped or failed`
-			);
+			toast.success(`Uploaded ${total} ${total === 1 ? 'photo' : 'photos'}`);
+			return;
 		}
+		const parts: string[] = [];
+		if (uploaded > 0) parts.push(`uploaded ${uploaded}`);
+		if (duplicates > 0) parts.push(`skipped ${duplicates} already uploaded`);
+		if (failed > 0) parts.push(`failed ${failed}`);
+		const summary = parts.join(', ');
+		const message = `${summary.charAt(0).toUpperCase()}${summary.slice(1)}.`;
+		// A failure is worth flagging; skipping duplicates is benign and just informational.
+		if (failed > 0) toast.error(message);
+		else toast.info(message);
 	}
 </script>
 
