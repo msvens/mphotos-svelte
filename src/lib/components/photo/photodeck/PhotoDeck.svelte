@@ -58,11 +58,14 @@
 
 	// The URL is the single source of truth for which photo is showing. Holding an index
 	// in state is what let the React version drift out of sync with its own address bar.
-	let index = $derived.by(() => {
-		const i = photos.findIndex((p) => p.id === photoId);
-		return i === -1 ? 0 : i;
-	});
-	let currentPhoto = $derived(photos[index]);
+	let index = $derived(photos.findIndex((p) => p.id === photoId));
+	// -1 means the requested id isn't in the list. Keep it distinct from a real index so the
+	// template shows an honest "not found" rather than silently falling back to photos[0] —
+	// which looked like "clicking a photo opens a different one" when the list was stale.
+	let currentPhoto = $derived(index === -1 ? undefined : photos[index]);
+	// "Back" target from a not-found photo: the deck's parent (strip the trailing slash),
+	// e.g. '/photo/' -> '/photo', '/album/x/' -> '/album/x'.
+	let backHref = $derived(urlPrefix.replace(/\/+$/, ''));
 
 	/** The deck is a carousel, so the chevrons are never disabled. */
 	const wrap = (i: number) => (i + photos.length) % photos.length;
@@ -225,9 +228,14 @@
 
 <svelte:window onkeydown={onKeydown} />
 
-{#if !currentPhoto}
+{#if photos.length === 0}
 	<div class="flex h-[80vh] items-center justify-center">
 		<div class="text-gray-400">No photos available</div>
+	</div>
+{:else if !currentPhoto}
+	<div class="flex h-[80vh] flex-col items-center justify-center gap-3">
+		<div class="text-gray-400">Photo not found.</div>
+		<a href={backHref} class="text-blue-500 underline hover:text-blue-400">Back to photos</a>
 	</div>
 {:else if showOverlay}
 	<div
