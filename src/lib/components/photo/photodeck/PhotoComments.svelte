@@ -50,8 +50,18 @@
 
 		isPosting = true;
 		try {
-			const comment = await guestsService.commentPhoto(photoId, newComment);
-			comments = [...comments, comment];
+			const posted = await guestsService.commentPhoto(photoId, newComment);
+			// The POST response doesn't carry the author's guestId/avatar (the enriched fields
+			// only come back on a fresh list fetch). The author is the signed-in guest, so stamp
+			// them from app.guest — otherwise a new comment shows no avatar until a reload.
+			comments = [
+				...comments,
+				{
+					...posted,
+					guestId: app.guest?.guestId ?? posted.guestId,
+					avatar: app.guest?.avatar ?? posted.avatar
+				}
+			];
 			newComment = '';
 		} catch (e) {
 			if (e instanceof ApiError && e.status === 401) {

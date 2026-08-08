@@ -163,6 +163,29 @@ describe('PhotoComments', () => {
 			expect(box()).toHaveValue('');
 		});
 
+		it("shows the poster's own avatar on the new comment, without a reload", async () => {
+			// The POST response omits guestId/avatar; the author is the signed-in guest, so the
+			// new comment should still get their avatar stamped from app.guest.
+			const s = state(true);
+			s.guest = {
+				guestId: 'me',
+				email: 'me@x.com',
+				name: 'Me',
+				fullName: '',
+				description: '',
+				avatar: '.jpg',
+				verified: true,
+				verifyTime: ''
+			};
+			const { container } = renderWithApp(PhotoComments, { state: s, props: { photoId: 'p1' } });
+			await fireEvent.input(box(), { target: { value: 'Nice shot' } });
+
+			await fireEvent.click(post());
+
+			expect(await screen.findByText('Nice shot')).toBeInTheDocument();
+			expect(container.querySelector('img')).toHaveAttribute('src', '/api/guest/avatar/me/48');
+		});
+
 		it('keeps the text when posting fails', async () => {
 			vi.mocked(guestsService.commentPhoto).mockRejectedValue(new Error('nope'));
 			renderWithApp(PhotoComments, { state: state(true), props: { photoId: 'p1' } });
