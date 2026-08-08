@@ -16,12 +16,30 @@ vi.mock('$lib/api/services', () => ({
 		getGuest: vi.fn(),
 		registerGuest: vi.fn(),
 		loginGuest: vi.fn(),
-		loginVerifyGuest: vi.fn()
+		loginVerifyGuest: vi.fn(),
+		// GuestAvatar (rendered per comment) needs the real URL builder.
+		getAvatarUrl: (guestId: string, size?: number) =>
+			size ? `/api/guest/avatar/${guestId}/${size}` : `/api/guest/avatar/${guestId}`
 	}
 }));
 
-function comment(id: number, body: string, description = ''): PhotoComment {
-	return { id, photoId: 'p1', name: 'Ann', description, time: '2026-03-04T10:00:00Z', body };
+function comment(
+	id: number,
+	body: string,
+	description = '',
+	over: Partial<PhotoComment> = {}
+): PhotoComment {
+	return {
+		id,
+		guestId: 'g1',
+		photoId: 'p1',
+		name: 'Ann',
+		description,
+		avatar: '',
+		time: '2026-03-04T10:00:00Z',
+		body,
+		...over
+	};
 }
 
 function state(isGuest: boolean, loading = false): AppState {
@@ -76,6 +94,33 @@ describe('PhotoComments', () => {
 			expect(await screen.findByText(/film photographer/)).toBeInTheDocument();
 		});
 
+		it("shows the author's avatar when they have one", async () => {
+			vi.mocked(guestsService.getPhotoComments).mockResolvedValue([
+				comment(1, 'Lovely light', '', { guestId: 'g1', avatar: '.jpg' })
+			]);
+			const { container } = renderWithApp(PhotoComments, {
+				state: state(false),
+				props: { photoId: 'p1' }
+			});
+
+			await screen.findByText('Lovely light');
+			const img = container.querySelector('img');
+			expect(img).not.toBeNull();
+			expect(img).toHaveAttribute('src', '/api/guest/avatar/g1/48');
+		});
+
+		it('shows no avatar image when the author has none', async () => {
+			// The "looks exactly like today" contract: no avatar → no <img>, no placeholder.
+			vi.mocked(guestsService.getPhotoComments).mockResolvedValue([comment(1, 'Lovely light')]);
+			const { container } = renderWithApp(PhotoComments, {
+				state: state(false),
+				props: { photoId: 'p1' }
+			});
+
+			await screen.findByText('Lovely light');
+			expect(container.querySelector('img')).toBeNull();
+		});
+
 		it('copes with a failed fetch', async () => {
 			vi.mocked(guestsService.getPhotoComments).mockRejectedValue(new Error('boom'));
 			renderWithApp(PhotoComments, { state: state(false), props: { photoId: 'p1' } });
@@ -116,6 +161,29 @@ describe('PhotoComments', () => {
 			);
 			expect(await screen.findByText('Nice shot')).toBeInTheDocument();
 			expect(box()).toHaveValue('');
+		});
+
+		it("shows the poster's own avatar on the new comment, without a reload", async () => {
+			// The POST response omits guestId/avatar; the author is the signed-in guest, so the
+			// new comment should still get their avatar stamped from app.guest.
+			const s = state(true);
+			s.guest = {
+				guestId: 'me',
+				email: 'me@x.com',
+				name: 'Me',
+				fullName: '',
+				description: '',
+				avatar: '.jpg',
+				verified: true,
+				verifyTime: ''
+			};
+			const { container } = renderWithApp(PhotoComments, { state: s, props: { photoId: 'p1' } });
+			await fireEvent.input(box(), { target: { value: 'Nice shot' } });
+
+			await fireEvent.click(post());
+
+			expect(await screen.findByText('Nice shot')).toBeInTheDocument();
+			expect(container.querySelector('img')).toHaveAttribute('src', '/api/guest/avatar/me/48');
 		});
 
 		it('keeps the text when posting fails', async () => {

@@ -7,10 +7,12 @@ import GuestProfileDialog from './GuestProfileDialog.svelte';
 vi.mock('$lib/api/services', () => ({ guestsService: { updateGuest: vi.fn() } }));
 
 const guest: Guest = {
+	guestId: 'g-ada',
 	email: 'a@b.c',
 	name: 'Ada',
 	fullName: 'Ada Lovelace',
 	description: 'maths',
+	avatar: '',
 	verified: true,
 	verifyTime: ''
 };

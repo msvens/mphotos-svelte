@@ -47,6 +47,10 @@ export const API_ENDPOINTS = {
 	guestUpdate: '/api/guest/update',
 	guestIs: '/api/guest/is',
 	guestLogout: '/api/guest/logout',
+	guestAvatar: (guestId: string, size?: 48 | 192) =>
+		size ? `/api/guest/avatar/${guestId}/${size}` : `/api/guest/avatar/${guestId}`,
+	guestAvatarUpload: '/api/guest/avatar/upload',
+	guestAvatarBase: '/api/guest/avatar',
 	guestLikes: '/api/guest/likes',
 	guestLikePhoto: (photoId: string) => `/api/guest/likes/${photoId}`,
 	photoLikes: (photoId: string) => `/api/likes/${photoId}`,

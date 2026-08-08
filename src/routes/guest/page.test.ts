@@ -20,17 +20,23 @@ vi.mock('$lib/api/services', () => ({
 		registerGuest: vi.fn(),
 		loginGuest: vi.fn(),
 		loginVerifyGuest: vi.fn(),
-		updateGuest: vi.fn()
+		updateGuest: vi.fn(),
+		uploadAvatar: vi.fn(),
+		removeAvatar: vi.fn(),
+		getAvatarUrl: (guestId: string, size?: number) =>
+			size ? `/api/guest/avatar/${guestId}/${size}` : `/api/guest/avatar/${guestId}`
 	},
 	albumsService: { getAlbumPhotos: vi.fn() },
 	photosService: { getPhotos: vi.fn() }
 }));
 
 const guest = (over: Partial<Guest> = {}): Guest => ({
+	guestId: 'g-ada',
 	name: 'Ada',
 	email: 'ada@example.com',
 	fullName: '',
 	description: '',
+	avatar: '',
 	verified: true,
 	verifyTime: '',
 	...over
@@ -52,6 +58,8 @@ beforeEach(() => {
 	vi.mocked(guestsService.getGuest).mockReset();
 	vi.mocked(guestsService.verifyGuest).mockReset();
 	vi.mocked(guestsService.logoutGuest).mockReset().mockResolvedValue({ authenticated: false });
+	vi.mocked(guestsService.uploadAvatar).mockReset().mockResolvedValue(guest());
+	vi.mocked(guestsService.removeAvatar).mockReset().mockResolvedValue(guest());
 	vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -114,5 +122,45 @@ describe('guest page', () => {
 
 		await vi.waitFor(() => expect(guestsService.logoutGuest).toHaveBeenCalled());
 		expect(await screen.findByRole('button', { name: 'SIGN IN' })).toBeInTheDocument();
+	});
+
+	describe('avatar', () => {
+		it('shows the avatar and a remove button when one is set', () => {
+			const { container } = renderWithApp(GuestPage, { state: state(guest({ avatar: '.jpg' })) });
+
+			expect(container.querySelector('img')).toHaveAttribute('src', '/api/guest/avatar/g-ada/192');
+			expect(screen.getByRole('button', { name: 'REMOVE' })).toBeInTheDocument();
+		});
+
+		it('offers to add a picture (no image) when there is none', () => {
+			const { container } = renderWithApp(GuestPage, { state: state(guest()) });
+
+			expect(container.querySelector('img')).toBeNull();
+			expect(screen.getByRole('button', { name: 'ADD PICTURE' })).toBeInTheDocument();
+			expect(screen.queryByRole('button', { name: 'REMOVE' })).toBeNull();
+		});
+
+		it('uploads a chosen file and refreshes the guest', async () => {
+			vi.mocked(guestsService.isGuest).mockResolvedValue(true);
+			vi.mocked(guestsService.getGuest).mockResolvedValue(guest({ avatar: '.png' }));
+			const { container } = renderWithApp(GuestPage, { state: state(guest()) });
+
+			const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+			const file = new File(['x'], 'me.png', { type: 'image/png' });
+			await fireEvent.change(input, { target: { files: [file] } });
+
+			await vi.waitFor(() => expect(guestsService.uploadAvatar).toHaveBeenCalledWith(file));
+			await vi.waitFor(() => expect(guestsService.getGuest).toHaveBeenCalled());
+		});
+
+		it('removes the avatar', async () => {
+			vi.mocked(guestsService.isGuest).mockResolvedValue(true);
+			vi.mocked(guestsService.getGuest).mockResolvedValue(guest());
+			renderWithApp(GuestPage, { state: state(guest({ avatar: '.jpg' })) });
+
+			await fireEvent.click(screen.getByRole('button', { name: 'REMOVE' }));
+
+			await vi.waitFor(() => expect(guestsService.removeAvatar).toHaveBeenCalled());
+		});
 	});
 });
