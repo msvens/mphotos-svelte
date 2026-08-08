@@ -4,6 +4,7 @@
 	import { getAppState } from '$lib/stores/app.svelte';
 	import type { PhotoComment } from '$lib/api/types';
 	import GuestSignInDialog from '$lib/components/guest/GuestSignInDialog.svelte';
+	import GuestAvatar from '$lib/components/guest/GuestAvatar.svelte';
 
 	interface PhotoCommentsProps {
 		photoId: string;
@@ -103,20 +104,36 @@
 	{:else if comments.length === 0}
 		<div class="text-sm text-gray-400">No comments yet. Be the first to comment!</div>
 	{:else}
-		{#each comments as comment (comment.id)}
-			<div class="mr-2">
-				<!-- Author is the anchor (medium/primary); date + bio recede below it, each on its
-				     own line so a long bio wraps instead of truncating. -->
-				<div class="text-sm">
-					<span class="font-medium text-gray-900 dark:text-white">{comment.name}</span><span
-						class="text-gray-500 dark:text-gray-500">, {formatDate(comment.time)}</span
-					>
-				</div>
-				{#if comment.description}
-					<div class="text-xs text-gray-500 dark:text-gray-500">{comment.description}</div>
-				{/if}
-				<div class="mt-0.5 text-sm text-gray-800 dark:text-gray-200">{comment.body}</div>
+		{#snippet commentBody(comment: PhotoComment)}
+			<!-- Author is the anchor (medium/primary); date + bio recede below it, each on its
+			     own line so a long bio wraps instead of truncating. -->
+			<div class="text-sm">
+				<span class="font-medium text-gray-900 dark:text-white">{comment.name}</span><span
+					class="text-gray-500 dark:text-gray-500">, {formatDate(comment.time)}</span
+				>
 			</div>
+			{#if comment.description}
+				<div class="text-xs text-gray-500 dark:text-gray-500">{comment.description}</div>
+			{/if}
+			<div class="mt-0.5 text-sm text-gray-800 dark:text-gray-200">{comment.body}</div>
+		{/snippet}
+		{#each comments as comment (comment.id)}
+			<!-- Avatar only when the author set one: an avatar-less comment renders exactly as
+			     before (no icon, no gap). -->
+			{#if comment.guestId && comment.avatar}
+				<div class="mr-2 flex items-start gap-2">
+					<GuestAvatar
+						guestId={comment.guestId}
+						avatar={comment.avatar}
+						name={comment.name}
+						size={48}
+						class="h-8 w-8 flex-shrink-0"
+					/>
+					<div class="min-w-0">{@render commentBody(comment)}</div>
+				</div>
+			{:else}
+				<div class="mr-2">{@render commentBody(comment)}</div>
+			{/if}
 		{/each}
 	{/if}
 </div>

@@ -33,6 +33,12 @@ export interface GuestsService {
 	unlikePhoto(photoId: string): Promise<string>;
 	getPhotoComments(photoId: string): Promise<PhotoComment[]>;
 	commentPhoto(photoId: string, comment: string): Promise<PhotoComment>;
+	/** Build the URL that serves a guest's avatar (original, or a 48/192 square variant). */
+	getAvatarUrl(guestId: string, size?: 48 | 192): string;
+	/** Upload the signed-in guest's avatar (JPEG/PNG). Returns the updated guest. */
+	uploadAvatar(file: File): Promise<Guest>;
+	/** Remove the signed-in guest's avatar. Returns the updated guest. */
+	removeAvatar(): Promise<Guest>;
 }
 
 export const guestsService: GuestsService = {
@@ -96,5 +102,19 @@ export const guestsService: GuestsService = {
 
 	async commentPhoto(photoId: string, comment: string): Promise<PhotoComment> {
 		return api.post<PhotoComment>(API_ENDPOINTS.photoComments(photoId), { body: comment });
+	},
+
+	getAvatarUrl(guestId: string, size?: 48 | 192): string {
+		return API_ENDPOINTS.guestAvatar(guestId, size);
+	},
+
+	async uploadAvatar(file: File): Promise<Guest> {
+		const formData = new FormData();
+		formData.append('avatar', file, file.name);
+		return api.post<Guest>(API_ENDPOINTS.guestAvatarUpload, formData);
+	},
+
+	async removeAvatar(): Promise<Guest> {
+		return api.delete<Guest>(API_ENDPOINTS.guestAvatarBase);
 	}
 };

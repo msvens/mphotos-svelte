@@ -8,6 +8,7 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import GuestSignInDialog from '$lib/components/guest/GuestSignInDialog.svelte';
 	import GuestProfileDialog from '$lib/components/guest/GuestProfileDialog.svelte';
+	import GuestAvatar from '$lib/components/guest/GuestAvatar.svelte';
 
 	const app = getAppState();
 	const toast = getToastState();
@@ -20,6 +21,45 @@
 	let justVerified = $state(false);
 	let showSignIn = $state(false);
 	let showProfile = $state(false);
+
+	// The avatar file is overwritten at the same URL, so bump this after a change to force the
+	// <img> to refetch instead of showing the cached one.
+	let avatarVersion = $state(0);
+	let avatarInput = $state<HTMLInputElement>();
+	let avatarBusy = $state(false);
+
+	async function changeAvatar(event: Event) {
+		const file = (event.currentTarget as HTMLInputElement).files?.[0];
+		if (avatarInput) avatarInput.value = '';
+		if (!file) return;
+		avatarBusy = true;
+		try {
+			await guestsService.uploadAvatar(file);
+			await app.refreshGuest();
+			avatarVersion++;
+			toast.success('Avatar updated');
+		} catch (e) {
+			console.error('Error uploading avatar:', e);
+			toast.error('Failed to update avatar');
+		} finally {
+			avatarBusy = false;
+		}
+	}
+
+	async function removeAvatar() {
+		avatarBusy = true;
+		try {
+			await guestsService.removeAvatar();
+			await app.refreshGuest();
+			avatarVersion++;
+			toast.success('Avatar removed');
+		} catch (e) {
+			console.error('Error removing avatar:', e);
+			toast.error('Failed to remove avatar');
+		} finally {
+			avatarBusy = false;
+		}
+	}
 
 	onMount(async () => {
 		if (!code) return;
@@ -76,8 +116,35 @@
 			You can <a class="underline" href="/photo">like and comment on photos</a>.
 		</p>
 
-		<div class="space-y-3 border-t border-gray-200 pt-6 dark:border-gray-700">
+		<div class="space-y-4 border-t border-gray-200 pt-6 dark:border-gray-700">
 			<h3 class="text-lg font-medium text-gray-900 dark:text-white">Manage your guest account</h3>
+
+			<div class="flex items-center gap-4">
+				<GuestAvatar
+					guestId={app.guest.guestId}
+					avatar={app.guest.avatar}
+					name={app.guest.name}
+					size={192}
+					version={avatarVersion}
+					class="h-24 w-24"
+				/>
+				<input
+					bind:this={avatarInput}
+					type="file"
+					accept="image/jpeg,image/png"
+					onchange={changeAvatar}
+					class="hidden"
+				/>
+				<div class="flex gap-3">
+					<Button onclick={() => avatarInput?.click()} variant="outlined" disabled={avatarBusy}>
+						{app.guest.avatar ? 'CHANGE PICTURE' : 'ADD PICTURE'}
+					</Button>
+					{#if app.guest.avatar}
+						<Button onclick={removeAvatar} variant="outlined" disabled={avatarBusy}>REMOVE</Button>
+					{/if}
+				</div>
+			</div>
+
 			<div class="flex gap-3">
 				<Button onclick={() => (showProfile = true)}>UPDATE PROFILE</Button>
 				<Button onclick={handleLogout} variant="outlined">LOGOUT</Button>

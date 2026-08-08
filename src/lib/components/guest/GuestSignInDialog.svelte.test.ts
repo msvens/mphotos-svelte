@@ -10,10 +10,12 @@ vi.mock('$lib/api/services', () => ({
 }));
 
 const guest: Guest = {
+	guestId: 'g-ada',
 	email: 'a@b.c',
 	name: 'Ada',
 	fullName: '',
 	description: '',
+	avatar: '',
 	verified: true,
 	verifyTime: ''
 };

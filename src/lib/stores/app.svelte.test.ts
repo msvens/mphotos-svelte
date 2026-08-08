@@ -22,10 +22,12 @@ const mockUser: User = {
 };
 const serverConfig: Partial<UXConfig> = { photoGridCols: 5, photoGridSpacing: 10 };
 const mockGuest: Guest = {
+	guestId: 'g-test',
 	name: 'Test Guest',
 	email: 'guest@example.com',
 	fullName: '',
 	description: '',
+	avatar: '',
 	verified: true,
 	verifyTime: ''
 };

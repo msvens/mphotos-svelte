@@ -96,10 +96,13 @@ export interface User {
 }
 
 export interface Guest {
+	guestId: string;
 	email: string;
 	name: string;
 	fullName: string;
 	description: string;
+	/** Avatar file extension (e.g. ".jpg"), or "" when none is set. */
+	avatar: string;
 	verified: boolean;
 	verifyTime: string;
 }
@@ -117,9 +120,12 @@ export interface GuestLike {
 
 export interface PhotoComment {
 	id: number;
+	guestId: string;
 	photoId: string;
 	name: string;
 	description: string;
+	/** Author's avatar file extension (e.g. ".jpg"), or "" when none is set. */
+	avatar: string;
 	time: string;
 	body: string;
 }

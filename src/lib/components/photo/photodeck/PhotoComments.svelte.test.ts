@@ -16,12 +16,30 @@ vi.mock('$lib/api/services', () => ({
 		getGuest: vi.fn(),
 		registerGuest: vi.fn(),
 		loginGuest: vi.fn(),
-		loginVerifyGuest: vi.fn()
+		loginVerifyGuest: vi.fn(),
+		// GuestAvatar (rendered per comment) needs the real URL builder.
+		getAvatarUrl: (guestId: string, size?: number) =>
+			size ? `/api/guest/avatar/${guestId}/${size}` : `/api/guest/avatar/${guestId}`
 	}
 }));
 
-function comment(id: number, body: string, description = ''): PhotoComment {
-	return { id, photoId: 'p1', name: 'Ann', description, time: '2026-03-04T10:00:00Z', body };
+function comment(
+	id: number,
+	body: string,
+	description = '',
+	over: Partial<PhotoComment> = {}
+): PhotoComment {
+	return {
+		id,
+		guestId: 'g1',
+		photoId: 'p1',
+		name: 'Ann',
+		description,
+		avatar: '',
+		time: '2026-03-04T10:00:00Z',
+		body,
+		...over
+	};
 }
 
 function state(isGuest: boolean, loading = false): AppState {
@@ -74,6 +92,33 @@ describe('PhotoComments', () => {
 			renderWithApp(PhotoComments, { state: state(false), props: { photoId: 'p1' } });
 
 			expect(await screen.findByText(/film photographer/)).toBeInTheDocument();
+		});
+
+		it("shows the author's avatar when they have one", async () => {
+			vi.mocked(guestsService.getPhotoComments).mockResolvedValue([
+				comment(1, 'Lovely light', '', { guestId: 'g1', avatar: '.jpg' })
+			]);
+			const { container } = renderWithApp(PhotoComments, {
+				state: state(false),
+				props: { photoId: 'p1' }
+			});
+
+			await screen.findByText('Lovely light');
+			const img = container.querySelector('img');
+			expect(img).not.toBeNull();
+			expect(img).toHaveAttribute('src', '/api/guest/avatar/g1/48');
+		});
+
+		it('shows no avatar image when the author has none', async () => {
+			// The "looks exactly like today" contract: no avatar → no <img>, no placeholder.
+			vi.mocked(guestsService.getPhotoComments).mockResolvedValue([comment(1, 'Lovely light')]);
+			const { container } = renderWithApp(PhotoComments, {
+				state: state(false),
+				props: { photoId: 'p1' }
+			});
+
+			await screen.findByText('Lovely light');
+			expect(container.querySelector('img')).toBeNull();
 		});
 
 		it('copes with a failed fetch', async () => {

@@ -27,6 +27,7 @@ describe('guestsService', () => {
 		vi.mocked(api.get).mockReset();
 		vi.mocked(api.post).mockReset();
 		vi.mocked(api.put).mockReset();
+		vi.mocked(api.delete).mockReset();
 	});
 
 	it('registerGuest sends PUT with signup params', async () => {
@@ -137,5 +138,25 @@ describe('guestsService', () => {
 		vi.mocked(api.post).mockResolvedValue({ id: 'c1', body: 'Nice!' });
 		await guestsService.commentPhoto('p1', 'Nice!');
 		expect(api.post).toHaveBeenCalledWith(API_ENDPOINTS.photoComments('p1'), { body: 'Nice!' });
+	});
+
+	it('getAvatarUrl builds the avatar path with an optional size', () => {
+		expect(guestsService.getAvatarUrl('g1')).toBe('/api/guest/avatar/g1');
+		expect(guestsService.getAvatarUrl('g1', 192)).toBe('/api/guest/avatar/g1/192');
+	});
+
+	it('uploadAvatar posts the file as FormData under the "avatar" field', async () => {
+		vi.mocked(api.post).mockResolvedValue(mockGuest);
+		const file = new File(['x'], 'me.png', { type: 'image/png' });
+		await guestsService.uploadAvatar(file);
+		expect(api.post).toHaveBeenCalledWith(API_ENDPOINTS.guestAvatarUpload, expect.any(FormData));
+		const fd = vi.mocked(api.post).mock.calls[0][1] as FormData;
+		expect(fd.get('avatar')).toBeInstanceOf(File);
+	});
+
+	it('removeAvatar DELETEs the avatar endpoint', async () => {
+		vi.mocked(api.delete).mockResolvedValue(mockGuest);
+		await guestsService.removeAvatar();
+		expect(api.delete).toHaveBeenCalledWith(API_ENDPOINTS.guestAvatarBase);
 	});
 });
