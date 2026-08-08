@@ -60,7 +60,7 @@ describe('camera photos route', () => {
 		const { container } = renderWithApp(CameraPhotosRoute, { state: ownerState() });
 
 		await vi.waitFor(() =>
-			expect(container.querySelector('a[href="/photo/p-z6"]')).toBeInTheDocument()
+			expect(container.querySelector('a[href="/camera/nikon-z6/photos/p-z6"]')).toBeInTheDocument()
 		);
 		expect(photosService.getPhotosByCameraModel).toHaveBeenCalledWith('Z6');
 		expect(screen.getByRole('heading', { name: 'Z6 Photos' })).toBeInTheDocument();
