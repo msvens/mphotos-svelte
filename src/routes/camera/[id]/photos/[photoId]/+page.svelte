@@ -5,10 +5,12 @@
 	import { getAppState } from '$lib/stores/app.svelte';
 	import type { Camera, PhotoMetadata } from '$lib/api/types';
 	import PageSpacing from '$lib/components/layout/PageSpacing.svelte';
-	import PhotoGrid from '$lib/components/photo/PhotoGrid.svelte';
+	import PhotoDeck from '$lib/components/photo/photodeck/PhotoDeck.svelte';
 
 	const app = getAppState();
 
+	// The camera has its own deck: paging must stay within this camera's photos rather than
+	// spilling into the full /photo stream. Load them the same way the grid page does.
 	let cameras = $state<Camera[]>([]);
 	let camerasLoading = $state(true);
 
@@ -44,26 +46,21 @@
 	});
 </script>
 
-<PageSpacing />
+<PageSpacing height="none" />
 
 {#if camerasLoading || (camera && photosLoading)}
-	<div class="flex min-h-[calc(100vh-200px)] items-center justify-center">
-		<div class="animate-pulse text-gray-400">Loading...</div>
+	<div class="flex h-[80vh] items-center justify-center">
+		<div class="text-gray-400">Loading photos...</div>
 	</div>
 {:else if !camera}
 	<div class="py-12 text-center text-gray-400">Camera not found</div>
 {:else}
-	<div class="mx-auto max-w-[1024px]">
-		<h1 class="mb-6 text-2xl font-light">{camera.model} Photos</h1>
-		{#if photos.length === 0}
-			<div class="py-12 text-center text-gray-400">No photos found for this camera</div>
-		{:else}
-			<PhotoGrid
-				{photos}
-				columns={app.uxConfig.photoGridCols}
-				spacing={app.uxConfig.photoGridSpacing}
-				linkTo={`/camera/${page.params.id}/photos`}
-			/>
-		{/if}
-	</div>
+	<!-- PhotoDeck owns the empty-list and unknown-id states (the latter links back to the grid). -->
+	<PhotoDeck
+		{photos}
+		photoId={page.params.photoId ?? ''}
+		urlPrefix={`/camera/${page.params.id}/photos/`}
+		editControls={app.isUser}
+		windowFullScreen={app.uxConfig.windowFullScreen}
+	/>
 {/if}
