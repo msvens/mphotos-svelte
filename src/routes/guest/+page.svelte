@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/state';
 	import { guestsService } from '$lib/api/services';
+	import { ApiError } from '$lib/api/client';
 	import { getAppState } from '$lib/stores/app.svelte';
 	import { getToastState } from '$lib/stores/toast.svelte';
 	import PageSpacing from '$lib/components/layout/PageSpacing.svelte';
@@ -40,7 +41,7 @@
 			toast.success('Avatar updated');
 		} catch (e) {
 			console.error('Error uploading avatar:', e);
-			toast.error('Failed to update avatar');
+			toast.error(e instanceof ApiError ? e.message : 'Failed to update avatar');
 		} finally {
 			avatarBusy = false;
 		}
@@ -55,7 +56,7 @@
 			toast.success('Avatar removed');
 		} catch (e) {
 			console.error('Error removing avatar:', e);
-			toast.error('Failed to remove avatar');
+			toast.error(e instanceof ApiError ? e.message : 'Failed to remove avatar');
 		} finally {
 			avatarBusy = false;
 		}

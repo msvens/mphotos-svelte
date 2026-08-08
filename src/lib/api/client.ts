@@ -17,17 +17,27 @@ async function handleResponse<T>(response: Response): Promise<T> {
 	try {
 		jsonResponse = JSON.parse(text);
 	} catch (e) {
+		// Non-JSON body (empty, or an HTML error page). On an error status, surface the status
+		// rather than a misleading "not valid JSON".
+		if (!response.ok) {
+			throw new ApiError(response.status, `HTTP error! status: ${response.status}`);
+		}
 		console.error('Failed to parse JSON response:', e);
 		throw new Error('Response was not valid JSON', { cause: e });
 	}
 
-	// Check for error in the response
+	// The backend wraps failures as { error: { code, message } }. Surface that message — even on
+	// a non-2xx, where we previously threw a generic status error before ever reading the body.
 	if (jsonResponse.error) {
 		console.error('API error:', jsonResponse.error);
 		throw new ApiError(
 			jsonResponse.error.code || response.status,
 			jsonResponse.error.message || 'Unknown error'
 		);
+	}
+
+	if (!response.ok) {
+		throw new ApiError(response.status, `HTTP error! status: ${response.status}`);
 	}
 
 	return jsonResponse.data || jsonResponse;
@@ -58,10 +68,8 @@ export async function apiRequest<T>(endpoint: string, config?: RequestConfig): P
 
 		const response = await fetch(url, fetchOptions);
 
-		if (!response.ok) {
-			throw new ApiError(response.status, `HTTP error! status: ${response.status}`);
-		}
-
+		// handleResponse inspects the body on both success and failure, so the backend's error
+		// message survives instead of being masked by a generic status error.
 		return handleResponse<T>(response);
 	} catch (error) {
 		console.error('API request failed:', error);

@@ -39,13 +39,25 @@ describe('apiRequest', () => {
 		});
 	});
 
-	it('throws ApiError on non-ok HTTP status', async () => {
+	it('throws ApiError on a non-ok status with a non-JSON body', async () => {
 		mockFetch.mockResolvedValue({
 			ok: false,
-			status: 500
+			status: 500,
+			text: () => Promise.resolve('')
 		} as Response);
 		await expect(apiRequest('/api/photos')).rejects.toThrow(ApiError);
 		await expect(apiRequest('/api/photos')).rejects.toMatchObject({ status: 500 });
+	});
+
+	it('surfaces the backend error message on a non-ok status', async () => {
+		// Previously a non-2xx threw a generic "HTTP error! status: N" before the error body was
+		// ever read, hiding why the request failed.
+		const body = { error: { code: 400, message: 'avatar must be a jpeg or png image' } };
+		mockFetch.mockResolvedValue(jsonResponse(body, 400));
+		await expect(apiRequest('/api/guest/avatar/upload', { method: 'POST' })).rejects.toMatchObject({
+			status: 400,
+			message: 'avatar must be a jpeg or png image'
+		});
 	});
 
 	it('throws on non-JSON response', async () => {
