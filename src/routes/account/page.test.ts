@@ -16,7 +16,7 @@ vi.mock('$lib/api/services', () => ({
 		updateUserConfig: vi.fn(),
 		updateUserGDrive: vi.fn()
 	},
-	guestsService: { isGuest: vi.fn(), getGuest: vi.fn() },
+	guestsService: { isGuest: vi.fn(), getGuest: vi.fn(), getGuests: vi.fn().mockResolvedValue([]) },
 	photosService: {
 		getPhotos: vi.fn().mockResolvedValue({ length: 0, photos: [] }),
 		deletePhotos: vi.fn(),
@@ -59,9 +59,10 @@ describe('account page gating', () => {
 				user: { name: 'Test User', bio: '', pic: '', photoStreamAlbumId: '' }
 			})
 		});
-		// all six menu items present
+		// all seven menu items present
 		for (const name of [
 			'Profile',
+			'Guests',
 			'Google Drive',
 			'Local Drive',
 			'UX Config',
@@ -101,6 +102,21 @@ describe('account page gating', () => {
 		await fireEvent.click(screen.getByRole('button', { name: 'Google Drive' }));
 
 		expect(await screen.findByRole('button', { name: 'CONNECT' })).toBeInTheDocument();
+		expect(screen.queryByText('This section has not been migrated yet.')).toBeNull();
+	});
+
+	it('renders the Guests section when selected', async () => {
+		renderWithApp(Account, {
+			state: state({
+				loading: false,
+				isUser: true,
+				user: { name: 'Test User', bio: '', pic: '', photoStreamAlbumId: '' }
+			})
+		});
+
+		await fireEvent.click(screen.getByRole('button', { name: 'Guests' }));
+
+		expect(await screen.findByText('No guests yet.')).toBeInTheDocument();
 		expect(screen.queryByText('This section has not been migrated yet.')).toBeNull();
 	});
 

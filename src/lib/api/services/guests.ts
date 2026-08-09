@@ -24,6 +24,11 @@ export interface GuestsService {
 	loginVerifyGuest(email: string, code: string): Promise<Guest>;
 	updateGuest(params: UpdateGuestParams): Promise<Guest>;
 	getGuest(): Promise<Guest>;
+	/**
+	 * Owner-only: every guest, sorted by name. Unlike the public guest views this carries the
+	 * owner-visible fields (email, fullName), so never render it outside the account shell.
+	 */
+	getGuests(): Promise<Guest[]>;
 	isGuest(): Promise<boolean>;
 	logoutGuest(): Promise<AuthUser>;
 	getPhotoLikes(photoId: string): Promise<GuestReaction[]>;
@@ -64,6 +69,10 @@ export const guestsService: GuestsService = {
 
 	async getGuest(): Promise<Guest> {
 		return api.get<Guest>(API_ENDPOINTS.guest);
+	},
+
+	async getGuests(): Promise<Guest[]> {
+		return api.get<Guest[]>(API_ENDPOINTS.guests);
 	},
 
 	async isGuest(): Promise<boolean> {

@@ -85,6 +85,13 @@ describe('guestsService', () => {
 		expect(result).toEqual(mockGuest);
 	});
 
+	it('getGuests fetches the owner-only guest list', async () => {
+		vi.mocked(api.get).mockResolvedValue([mockGuest]);
+		const result = await guestsService.getGuests();
+		expect(api.get).toHaveBeenCalledWith(API_ENDPOINTS.guests);
+		expect(result).toEqual([mockGuest]);
+	});
+
 	it('isGuest returns authenticated status', async () => {
 		vi.mocked(api.get).mockResolvedValue({ authenticated: true });
 		expect(await guestsService.isGuest()).toBe(true);
