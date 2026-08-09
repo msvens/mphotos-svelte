@@ -40,6 +40,7 @@ export const API_ENDPOINTS = {
 	photoComments: (photoId: string) => `/api/comments/${photoId}`,
 
 	// Guests
+	guests: '/api/guests',
 	guest: '/api/guest',
 	guestVerify: '/api/guest/verify',
 	guestLogin: '/api/guest/login',

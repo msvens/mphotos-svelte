@@ -5,6 +5,7 @@
 	import Login from '$lib/components/account/Login.svelte';
 	import Logout from '$lib/components/account/Logout.svelte';
 	import Profile from '$lib/components/account/Profile.svelte';
+	import Guests from '$lib/components/account/Guests.svelte';
 	import Maintenance from '$lib/components/account/Maintenance.svelte';
 	import UxConfig from '$lib/components/account/UxConfig.svelte';
 	import LocalDrive from '$lib/components/account/LocalDrive.svelte';
@@ -13,6 +14,7 @@
 	const app = getAppState();
 
 	const PROFILE = 'profile';
+	const GUESTS = 'guests';
 	const GOOGLE_DRIVE = 'googledrive';
 	const LOCAL_DRIVE = 'localdrive';
 	const UXCONFIG = 'uxconfig';
@@ -21,6 +23,7 @@
 
 	const menuItems: MenuItem[] = [
 		{ id: PROFILE, name: 'Profile' },
+		{ id: GUESTS, name: 'Guests' },
 		{ id: GOOGLE_DRIVE, name: 'Google Drive' },
 		{ id: LOCAL_DRIVE, name: 'Local Drive' },
 		{ id: UXCONFIG, name: 'UX Config' },
@@ -51,6 +54,8 @@
 		<div class="flex-1 pl-4 pr-8">
 			{#if active === PROFILE}
 				<Profile />
+			{:else if active === GUESTS}
+				<Guests />
 			{:else if active === GOOGLE_DRIVE}
 				<GoogleDrive />
 			{:else if active === LOCAL_DRIVE}
