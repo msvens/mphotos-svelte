@@ -1,8 +1,9 @@
 # mphotos-svelte
 
-A SvelteKit frontend for the **mphotos** photo service — an experimental migration of the
-Next.js frontend ([`mphotos-ui`](https://github.com/msvens/mphotos-ui)) to Svelte 5 /
-SvelteKit.
+**The production frontend for the [mphotos](https://github.com/msvens/mphotos) photo
+service.** It started as an experimental migration of the Next.js frontend
+([`mphotos-ui`](https://github.com/msvens/mphotos-ui)) to Svelte 5 / SvelteKit, reached
+feature parity, and is now the UI mphotos ships — `mphotos-ui` is superseded.
 
 It is a **static SPA** (client-rendered) that talks to the Go `mphotos` backend over `/api`
 (session-cookie auth) and is served behind nginx in production.
