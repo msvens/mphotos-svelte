@@ -23,6 +23,7 @@ vi.mock('$lib/api/services', () => ({
 		updateGuest: vi.fn(),
 		uploadAvatar: vi.fn(),
 		removeAvatar: vi.fn(),
+		deleteOwnAccount: vi.fn(),
 		getAvatarUrl: (guestId: string, size?: number) =>
 			size ? `/api/guest/avatar/${guestId}/${size}` : `/api/guest/avatar/${guestId}`
 	},
@@ -60,6 +61,7 @@ beforeEach(() => {
 	vi.mocked(guestsService.logoutGuest).mockReset().mockResolvedValue({ authenticated: false });
 	vi.mocked(guestsService.uploadAvatar).mockReset().mockResolvedValue(guest());
 	vi.mocked(guestsService.removeAvatar).mockReset().mockResolvedValue(guest());
+	vi.mocked(guestsService.deleteOwnAccount).mockReset().mockResolvedValue({ authenticated: false });
 	vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -161,6 +163,37 @@ describe('guest page', () => {
 			await fireEvent.click(screen.getByRole('button', { name: 'REMOVE' }));
 
 			await vi.waitFor(() => expect(guestsService.removeAvatar).toHaveBeenCalled());
+		});
+	});
+
+	describe('deleting your account', () => {
+		it('is not offered to a visitor who is not signed in', () => {
+			renderWithApp(GuestPage, { state: state() });
+			expect(screen.queryByRole('button', { name: 'DELETE MY ACCOUNT' })).toBeNull();
+		});
+
+		it('deletes the account and drops back to the signed-out view', async () => {
+			const { state: app } = renderWithApp(GuestPage, { state: state(guest()) });
+
+			await fireEvent.click(screen.getByRole('button', { name: 'DELETE MY ACCOUNT' }));
+			await fireEvent.click(screen.getByRole('button', { name: 'DELETE' }));
+
+			await vi.waitFor(() => expect(guestsService.deleteOwnAccount).toHaveBeenCalled());
+			expect(app.isGuest).toBe(false);
+			expect(app.guest).toBeUndefined();
+			expect(await screen.findByRole('heading', { name: 'Guest access' })).toBeInTheDocument();
+		});
+
+		it('keeps the guest signed in and toasts when the delete fails', async () => {
+			vi.mocked(guestsService.deleteOwnAccount).mockRejectedValue(new Error('nope'));
+			const { state: app, toast } = renderWithApp(GuestPage, { state: state(guest()) });
+
+			await fireEvent.click(screen.getByRole('button', { name: 'DELETE MY ACCOUNT' }));
+			await fireEvent.click(screen.getByRole('button', { name: 'DELETE' }));
+
+			await vi.waitFor(() => expect(toast.toasts[0]?.severity).toBe('error'));
+			expect(app.isGuest).toBe(true);
+			expect(screen.getByRole('heading', { name: 'Welcome back, Ada!' })).toBeInTheDocument();
 		});
 	});
 });

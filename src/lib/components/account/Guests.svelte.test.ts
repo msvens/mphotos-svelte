@@ -9,7 +9,13 @@ import Guests from './Guests.svelte';
 vi.mock('$lib/api/services', () => ({
 	authService: { isLoggedIn: vi.fn() },
 	userService: { getUser: vi.fn(), getUserConfig: vi.fn() },
-	guestsService: { isGuest: vi.fn(), getGuest: vi.fn(), getGuests: vi.fn(), getAvatarUrl: vi.fn() },
+	guestsService: {
+		isGuest: vi.fn(),
+		getGuest: vi.fn(),
+		getGuests: vi.fn(),
+		deleteGuest: vi.fn(),
+		getAvatarUrl: vi.fn()
+	},
 	albumsService: { getAlbumPhotos: vi.fn() },
 	photosService: { getPhotos: vi.fn() }
 }));
@@ -37,6 +43,7 @@ function ownerState(): AppState {
 beforeEach(() => {
 	vi.mocked(guestsService.getGuests).mockReset().mockResolvedValue([]);
 	vi.mocked(guestsService.getAvatarUrl).mockReturnValue('/api/guest/avatar/g1/48');
+	vi.mocked(guestsService.deleteGuest).mockReset().mockResolvedValue('g1');
 	vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -102,5 +109,49 @@ describe('Guests', () => {
 		renderWithApp(Guests, { state: ownerState() });
 
 		expect(await screen.findByText('user not logged in')).toBeInTheDocument();
+	});
+
+	describe('deleting a guest', () => {
+		const twoGuests = () => [guest(), guest({ guestId: 'g2', name: 'Bo', verified: false })];
+
+		it('confirms with the guest name before deleting', async () => {
+			vi.mocked(guestsService.getGuests).mockResolvedValue(twoGuests());
+			renderWithApp(Guests, { state: ownerState() });
+
+			const rows = await screen.findAllByRole('button', { name: 'Delete guest' });
+			await fireEvent.click(rows[0]);
+
+			expect(screen.getByRole('heading', { name: 'Delete guest "Anna"?' })).toBeInTheDocument();
+			expect(guestsService.deleteGuest).not.toHaveBeenCalled();
+		});
+
+		it('removes the row and updates the counts on success', async () => {
+			vi.mocked(guestsService.getGuests).mockResolvedValue(twoGuests());
+			const { toast } = renderWithApp(Guests, { state: ownerState() });
+
+			const rows = await screen.findAllByRole('button', { name: 'Delete guest' });
+			await fireEvent.click(rows[0]);
+			await fireEvent.click(screen.getByRole('button', { name: 'DELETE' }));
+
+			await vi.waitFor(() => expect(guestsService.deleteGuest).toHaveBeenCalledWith('g1'));
+			await vi.waitFor(() => expect(screen.queryByText('Anna')).toBeNull());
+			expect(screen.getByText('Bo')).toBeInTheDocument();
+			expect(screen.getByText('1 guest · 0 verified')).toBeInTheDocument();
+			expect(toast.toasts[0]?.severity).toBe('success');
+		});
+
+		it('keeps the row and toasts when the delete fails', async () => {
+			vi.mocked(guestsService.getGuests).mockResolvedValue(twoGuests());
+			vi.mocked(guestsService.deleteGuest).mockRejectedValue(new Error('guest not found'));
+			const { toast } = renderWithApp(Guests, { state: ownerState() });
+
+			const rows = await screen.findAllByRole('button', { name: 'Delete guest' });
+			await fireEvent.click(rows[0]);
+			await fireEvent.click(screen.getByRole('button', { name: 'DELETE' }));
+
+			await vi.waitFor(() => expect(toast.toasts[0]?.severity).toBe('error'));
+			expect(screen.getByText('Anna')).toBeInTheDocument();
+			expect(screen.getByText('2 guests · 1 verified')).toBeInTheDocument();
+		});
 	});
 });
