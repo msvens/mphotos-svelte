@@ -370,6 +370,39 @@ describe('PhotoDeck', () => {
 			expect(screen.getByRole('button', { name: 'Remove from photostream' })).toBeInTheDocument();
 		});
 
+		it('refreshes photostream membership after an album edit', async () => {
+			// The photostream IS an album, so the edit dialog can change membership without
+			// going through setInStream — leaving the toolbar icon stale until a reload.
+			vi.mocked(albumsService.getAlbums).mockResolvedValue([
+				{ id: 'stream', name: 'Photostream' }
+			] as never);
+			vi.mocked(photosService.getPhotoAlbums).mockResolvedValue([] as never);
+			// `editControls` is a prop, but a real editor is always the logged-in owner —
+			// which is what the refetch keys off.
+			const ownerApp = appState();
+			ownerApp.isUser = true;
+			vi.mocked(photosService.getPhotos).mockResolvedValue({
+				length: photos.length,
+				photos
+			});
+			const store = photoStore();
+			renderWithApp(PhotoDeck, { state: ownerApp, photos: store, props: owner });
+
+			await fireEvent.click(screen.getByRole('button', { name: 'Edit photo metadata' }));
+			await fireEvent.click(await screen.findByRole('combobox'));
+			await fireEvent.click(screen.getByRole('option', { name: 'Photostream' }));
+
+			// The server now reports 'a' as a member of the stream album.
+			vi.mocked(albumsService.getAlbumPhotos).mockResolvedValue({
+				length: 1,
+				photos: [photos[0]]
+			});
+			await fireEvent.click(screen.getByRole('button', { name: 'SAVE' }));
+
+			await vi.waitFor(() => expect(photosService.setPhotoAlbums).toHaveBeenCalled());
+			await vi.waitFor(() => expect(store.streamIds.has('a')).toBe(true));
+		});
+
 		it('only toast once when the photostream call fails', async () => {
 			// The React version toasted success before awaiting, so a failure produced both.
 			vi.mocked(albumsService.addAlbumPhotos).mockRejectedValue(new Error('nope'));

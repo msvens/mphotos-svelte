@@ -184,6 +184,30 @@ describe('home page', () => {
 			);
 		});
 
+		it('undims a photo as soon as it is added to the photostream', async () => {
+			renderWithApp(Home, { state: state(true) });
+			await vi.waitFor(() => expect(tiles()).toHaveLength(3));
+			expect(screen.getByAltText('Title b').className).toContain('opacity-25');
+
+			await fireEvent.click(screen.getAllByRole('button', { name: 'Add to photostream' })[0]);
+
+			await vi.waitFor(() =>
+				expect(screen.getByAltText('Title b').className).toContain('opacity-100')
+			);
+		});
+
+		it('dims a photo as soon as it is removed from the photostream', async () => {
+			renderWithApp(Home, { state: state(true) });
+			await vi.waitFor(() => expect(tiles()).toHaveLength(3));
+			expect(screen.getByAltText('Title a').className).toContain('opacity-100');
+
+			await fireEvent.click(screen.getByRole('button', { name: 'Remove from photostream' }));
+
+			await vi.waitFor(() =>
+				expect(screen.getByAltText('Title a').className).toContain('opacity-25')
+			);
+		});
+
 		it('toasts when the change fails', async () => {
 			vi.mocked(albumsService.addAlbumPhotos).mockRejectedValue(new Error('nope'));
 			const { toast } = renderWithApp(Home, { state: state(true) });
@@ -203,6 +227,37 @@ describe('home page', () => {
 		beforeEach(() => {
 			vi.mocked(albumsService.getAlbums).mockResolvedValue([]);
 			vi.mocked(photosService.getPhotoAlbums).mockResolvedValue([]);
+		});
+
+		it('refreshes dimming after the album picker changes photostream membership', async () => {
+			// The photostream IS an album, so the picker is a second way to change membership.
+			vi.mocked(albumsService.getAlbums).mockResolvedValue([
+				{ id: ALBUM, name: 'Photostream' },
+				{ id: 'other', name: 'Other' }
+			] as never);
+			vi.mocked(photosService.getPhotoAlbums).mockResolvedValue([
+				{ id: ALBUM, name: 'Photostream' }
+			] as never);
+			vi.mocked(photosService.setPhotoAlbums).mockResolvedValue(undefined as never);
+
+			renderWithApp(Home, { state: state(true) });
+			await vi.waitFor(() => expect(tiles()).toHaveLength(3));
+			// Photo 'a' is in the stream, so undimmed to start with.
+			expect(screen.getByAltText('Title a').className).toContain('opacity-100');
+
+			// Open the picker on tile 'a' and deselect the photostream album.
+			await fireEvent.click(screen.getAllByRole('button', { name: 'Select albums' })[0]);
+			await fireEvent.click(await screen.findByRole('combobox'));
+			await fireEvent.click(screen.getByRole('option', { name: 'Photostream' }));
+
+			// The server now says 'a' is out of the stream.
+			vi.mocked(albumsService.getAlbumPhotos).mockResolvedValue(list());
+			await fireEvent.click(screen.getByRole('button', { name: 'SAVE' }));
+
+			await vi.waitFor(() => expect(photosService.setPhotoAlbums).toHaveBeenCalled());
+			await vi.waitFor(() =>
+				expect(screen.getByAltText('Title a').className).toContain('opacity-25')
+			);
 		});
 
 		it('opens the album picker from the grid overlay, keeping the photostream button', async () => {

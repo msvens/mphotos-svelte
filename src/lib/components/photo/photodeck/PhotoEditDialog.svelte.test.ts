@@ -96,7 +96,8 @@ describe('PhotoEditDialog', () => {
 				'sky, dawn'
 			);
 			expect(photosService.setPhotoAlbums).not.toHaveBeenCalled();
-			expect(onClose).toHaveBeenCalledWith(expect.objectContaining({ title: 'Edited' }));
+			// The second argument tells the caller whether album membership changed — false here.
+			expect(onClose).toHaveBeenCalledWith(expect.objectContaining({ title: 'Edited' }), false);
 		});
 
 		it('toasts success', async () => {

@@ -43,6 +43,14 @@
 	const dimPhoto = (photo: PhotoMetadata) =>
 		app.isUser && !showPhotostream && !photoState.streamIds.has(photo.id);
 
+	// The photostream is itself an album, so the picker is a second way to change membership.
+	// It writes straight through `setPhotoAlbums`, bypassing `setInStream` and leaving
+	// `streamIds` stale — refetch so dimming reflects the change without a reload.
+	function closeAlbums(changed?: boolean) {
+		showAlbums = false;
+		if (changed) void photoState.load(app.isUser, app.user.photoStreamAlbumId, true);
+	}
+
 	async function toggleStream(photo: PhotoMetadata) {
 		const albumId = app.user.photoStreamAlbumId;
 		if (!albumId) return;
@@ -111,5 +119,5 @@
 {/if}
 
 {#if albumsPhoto}
-	<PhotoAlbumsDialog open={showAlbums} photo={albumsPhoto} onClose={() => (showAlbums = false)} />
+	<PhotoAlbumsDialog open={showAlbums} photo={albumsPhoto} onClose={closeAlbums} />
 {/if}

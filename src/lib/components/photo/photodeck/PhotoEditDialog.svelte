@@ -10,7 +10,8 @@
 	interface PhotoEditDialogProps {
 		open: boolean;
 		photo: PhotoMetadata;
-		onClose: (updated?: PhotoMetadata) => void;
+		/** `albumsChanged` lets the caller refresh photostream membership, which lives in a store. */
+		onClose: (updated?: PhotoMetadata, albumsChanged?: boolean) => void;
 	}
 
 	let { open, photo, onClose }: PhotoEditDialogProps = $props();
@@ -90,7 +91,7 @@
 				updated = await photosService.updatePhoto(photo.id, title, description, keywords);
 			}
 			toast.success('Photo updated successfully');
-			onClose(updated);
+			onClose(updated, albumChanged);
 		} catch (e) {
 			console.error('Error updating photo:', e);
 			const msg = e instanceof Error ? e.message : JSON.stringify(e);

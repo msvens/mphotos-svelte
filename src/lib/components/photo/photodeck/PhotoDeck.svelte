@@ -445,9 +445,12 @@
 		<PhotoEditDialog
 			open={showEditDialog}
 			photo={currentPhoto}
-			onClose={(updated) => {
+			onClose={(updated, albumsChanged) => {
 				showEditDialog = false;
 				if (updated) photoState.updatePhoto(updated);
+				// The photostream is an album, so an album edit can change membership without
+				// going through `setInStream`. Refetch so the toolbar icon is not stale.
+				if (albumsChanged) void photoState.load(app.isUser, app.user.photoStreamAlbumId, true);
 			}}
 		/>
 	{/if}
