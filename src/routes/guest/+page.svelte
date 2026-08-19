@@ -7,6 +7,7 @@
 	import { getToastState } from '$lib/stores/toast.svelte';
 	import PageSpacing from '$lib/components/layout/PageSpacing.svelte';
 	import Button from '$lib/components/ui/Button.svelte';
+	import Dialog from '$lib/components/ui/Dialog.svelte';
 	import GuestSignInDialog from '$lib/components/guest/GuestSignInDialog.svelte';
 	import GuestProfileDialog from '$lib/components/guest/GuestProfileDialog.svelte';
 	import GuestAvatar from '$lib/components/guest/GuestAvatar.svelte';
@@ -22,6 +23,8 @@
 	let justVerified = $state(false);
 	let showSignIn = $state(false);
 	let showProfile = $state(false);
+	let showDelete = $state(false);
+	let deleting = $state(false);
 
 	// The avatar file is overwritten at the same URL, so bump this after a change to force the
 	// <img> to refetch instead of showing the cached one.
@@ -91,6 +94,21 @@
 		await app.logoutGuest();
 		toast.success('Logged out');
 	}
+
+	async function handleDeleteAccount() {
+		deleting = true;
+		try {
+			// Clearing guest state flips the page back to the signed-out view on its own.
+			await app.deleteGuestAccount();
+			showDelete = false;
+			toast.success('Your account has been deleted');
+		} catch (e) {
+			console.error('Error deleting guest account:', e);
+			toast.error(e instanceof ApiError ? e.message : 'Failed to delete your account');
+		} finally {
+			deleting = false;
+		}
+	}
 </script>
 
 <PageSpacing />
@@ -151,6 +169,16 @@
 				<Button onclick={handleLogout} variant="outlined">LOGOUT</Button>
 			</div>
 		</div>
+
+		<div class="space-y-4 border-t border-gray-200 pt-6 dark:border-gray-700">
+			<h3 class="text-lg font-medium text-gray-900 dark:text-white">Delete account</h3>
+			<p class="text-sm text-gray-600 dark:text-gray-400">
+				Removes your account along with all your comments and likes. This cannot be undone.
+			</p>
+			<Button onclick={() => (showDelete = true)} variant="outlined" color="error">
+				DELETE MY ACCOUNT
+			</Button>
+		</div>
 	{:else}
 		<h1 class="text-2xl font-light">Guest access</h1>
 		{#if verifyFailed}
@@ -174,3 +202,22 @@
 {#if showProfile && app.guest}
 	<GuestProfileDialog guest={app.guest} onClose={closeProfile} />
 {/if}
+
+<Dialog
+	open={showDelete}
+	onClose={() => !deleting && (showDelete = false)}
+	title="Delete your account?"
+>
+	<p class="text-sm text-gray-900 dark:text-white">
+		This removes your account along with all your comments and likes. It cannot be undone.
+	</p>
+
+	{#snippet actions()}
+		<Button onclick={() => (showDelete = false)} variant="outlined" disabled={deleting}>
+			CANCEL
+		</Button>
+		<Button onclick={handleDeleteAccount} color="error" disabled={deleting}>
+			{deleting ? 'DELETING...' : 'DELETE'}
+		</Button>
+	{/snippet}
+</Dialog>

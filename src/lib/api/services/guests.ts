@@ -29,6 +29,13 @@ export interface GuestsService {
 	 * owner-visible fields (email, fullName), so never render it outside the account shell.
 	 */
 	getGuests(): Promise<Guest[]>;
+	/** Owner-only: delete a guest along with their comments, likes and avatar files. */
+	deleteGuest(guestId: string): Promise<string>;
+	/**
+	 * Delete the signed-in guest's own account. The server also expires the guest cookie,
+	 * so the caller must drop local guest state too.
+	 */
+	deleteOwnAccount(): Promise<AuthUser>;
 	isGuest(): Promise<boolean>;
 	logoutGuest(): Promise<AuthUser>;
 	getPhotoLikes(photoId: string): Promise<GuestReaction[]>;
@@ -73,6 +80,14 @@ export const guestsService: GuestsService = {
 
 	async getGuests(): Promise<Guest[]> {
 		return api.get<Guest[]>(API_ENDPOINTS.guests);
+	},
+
+	async deleteGuest(guestId: string): Promise<string> {
+		return api.delete<string>(API_ENDPOINTS.guestById(guestId));
+	},
+
+	async deleteOwnAccount(): Promise<AuthUser> {
+		return api.delete<AuthUser>(API_ENDPOINTS.guest);
 	},
 
 	async isGuest(): Promise<boolean> {

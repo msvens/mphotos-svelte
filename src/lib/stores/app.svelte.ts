@@ -112,6 +112,17 @@ export class AppState {
 		}
 	}
 
+	/**
+	 * Delete the signed-in guest's own account. The server expires the guest cookie, so local
+	 * guest state is dropped too. Unlike `logoutGuest` this rethrows: a failed delete must not
+	 * look like a successful one, since the account still exists.
+	 */
+	async deleteGuestAccount() {
+		await guestsService.deleteOwnAccount();
+		this.guest = undefined;
+		this.isGuest = false;
+	}
+
 	/** Save UX config and adopt it locally. Throws on failure. */
 	async updateUXConfig(config: UXConfig) {
 		await userService.updateUserConfig(config);

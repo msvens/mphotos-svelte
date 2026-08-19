@@ -11,7 +11,12 @@ vi.mock('$lib/api/services', () => ({
 		updateUserConfig: vi.fn(),
 		updatePhotostream: vi.fn()
 	},
-	guestsService: { isGuest: vi.fn(), getGuest: vi.fn(), logoutGuest: vi.fn() }
+	guestsService: {
+		isGuest: vi.fn(),
+		getGuest: vi.fn(),
+		logoutGuest: vi.fn(),
+		deleteOwnAccount: vi.fn()
+	}
 }));
 
 const mockUser: User = {
@@ -253,5 +258,33 @@ describe('AppState.logoutGuest', () => {
 
 		expect(app.isGuest).toBe(false);
 		expect(app.guest).toBeUndefined();
+	});
+});
+
+describe('AppState.deleteGuestAccount', () => {
+	it('clears guest state after the account is deleted', async () => {
+		vi.mocked(guestsService.deleteOwnAccount).mockResolvedValue({ authenticated: false });
+		const app = new AppState();
+		app.isGuest = true;
+		app.guest = mockGuest;
+
+		await app.deleteGuestAccount();
+
+		expect(guestsService.deleteOwnAccount).toHaveBeenCalled();
+		expect(app.isGuest).toBe(false);
+		expect(app.guest).toBeUndefined();
+	});
+
+	it('rethrows and keeps guest state when the delete fails', async () => {
+		vi.mocked(guestsService.deleteOwnAccount).mockRejectedValue(new Error('nope'));
+		const app = new AppState();
+		app.isGuest = true;
+		app.guest = mockGuest;
+
+		await expect(app.deleteGuestAccount()).rejects.toThrow('nope');
+
+		// The account still exists server-side, so the UI must not pretend it is gone.
+		expect(app.isGuest).toBe(true);
+		expect(app.guest).toEqual(mockGuest);
 	});
 });

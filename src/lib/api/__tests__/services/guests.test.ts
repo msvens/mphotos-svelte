@@ -85,6 +85,20 @@ describe('guestsService', () => {
 		expect(result).toEqual(mockGuest);
 	});
 
+	it('deleteGuest sends DELETE to the owner-only guest route', async () => {
+		vi.mocked(api.delete).mockResolvedValue('g1');
+		const result = await guestsService.deleteGuest('g1');
+		expect(api.delete).toHaveBeenCalledWith(API_ENDPOINTS.guestById('g1'));
+		expect(result).toBe('g1');
+	});
+
+	it('deleteOwnAccount sends DELETE to the guest route', async () => {
+		vi.mocked(api.delete).mockResolvedValue({ authenticated: false });
+		const result = await guestsService.deleteOwnAccount();
+		expect(api.delete).toHaveBeenCalledWith(API_ENDPOINTS.guest);
+		expect(result).toEqual({ authenticated: false });
+	});
+
 	it('getGuests fetches the owner-only guest list', async () => {
 		vi.mocked(api.get).mockResolvedValue([mockGuest]);
 		const result = await guestsService.getGuests();

@@ -41,6 +41,7 @@ export const API_ENDPOINTS = {
 
 	// Guests
 	guests: '/api/guests',
+	guestById: (guestId: string) => `/api/guests/${guestId}`,
 	guest: '/api/guest',
 	guestVerify: '/api/guest/verify',
 	guestLogin: '/api/guest/login',

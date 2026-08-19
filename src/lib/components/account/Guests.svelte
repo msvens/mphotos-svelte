@@ -1,10 +1,17 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { Icon, CheckCircle, Clock } from 'svelte-hero-icons';
+	import { Icon, CheckCircle, Clock, Trash } from 'svelte-hero-icons';
 	import { guestsService } from '$lib/api/services';
+	import { ApiError } from '$lib/api/client';
+	import { getToastState } from '$lib/stores/toast.svelte';
 	import type { Guest } from '$lib/api/types';
 	import GuestAvatar from '$lib/components/guest/GuestAvatar.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
+	import Dialog from '$lib/components/ui/Dialog.svelte';
+	import IconButton from '$lib/components/ui/IconButton.svelte';
 	import Select, { type SelectOption } from '$lib/components/ui/Select.svelte';
+
+	const toast = getToastState();
 
 	const FILTER_OPTIONS: SelectOption[] = [
 		{ value: 'all', label: 'All guests' },
@@ -16,6 +23,8 @@
 	let loading = $state(true);
 	let error = $state('');
 	let filter = $state('all');
+	let pendingDelete = $state<Guest | undefined>();
+	let deleting = $state(false);
 
 	let verifiedCount = $derived(guests.filter((g) => g.verified).length);
 	let shown = $derived(
@@ -33,6 +42,25 @@
 			loading = false;
 		}
 	});
+
+	async function confirmDelete() {
+		const target = pendingDelete;
+		if (!target) return;
+		deleting = true;
+		try {
+			await guestsService.deleteGuest(target.guestId);
+			// Drop the row locally: the count header and filter are derived from `guests`, so
+			// they correct themselves without a refetch or a loading flash.
+			guests = guests.filter((g) => g.guestId !== target.guestId);
+			pendingDelete = undefined;
+			toast.success(`Deleted ${target.name}`);
+		} catch (e) {
+			console.error('Error deleting guest:', e);
+			toast.error(e instanceof ApiError ? e.message : 'Failed to delete guest');
+		} finally {
+			deleting = false;
+		}
+	}
 
 	const formatDate = (t: string) =>
 		new Date(t).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
@@ -106,9 +134,34 @@
 							<div class="text-sm break-all text-gray-600 dark:text-gray-400">{guest.email}</div>
 							<div class="text-xs text-gray-500 dark:text-gray-500">{dateLabel(guest)}</div>
 						</div>
+						<IconButton
+							icon={Trash}
+							size="small"
+							title="Delete guest"
+							onclick={() => (pendingDelete = guest)}
+						/>
 					</li>
 				{/each}
 			</ul>
 		{/if}
 	{/if}
 </div>
+
+<Dialog
+	open={!!pendingDelete}
+	onClose={() => !deleting && (pendingDelete = undefined)}
+	title={pendingDelete ? `Delete guest "${pendingDelete.name}"?` : ''}
+>
+	<p class="text-sm text-gray-900 dark:text-white">
+		This removes {pendingDelete?.name} along with all their comments and likes. It cannot be undone.
+	</p>
+
+	{#snippet actions()}
+		<Button onclick={() => (pendingDelete = undefined)} variant="outlined" disabled={deleting}>
+			CANCEL
+		</Button>
+		<Button onclick={confirmDelete} color="error" disabled={deleting}>
+			{deleting ? 'DELETING...' : 'DELETE'}
+		</Button>
+	{/snippet}
+</Dialog>
