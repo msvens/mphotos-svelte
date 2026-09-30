@@ -46,6 +46,17 @@ describe('swipe', () => {
 		expect(onNext).not.toHaveBeenCalled();
 	});
 
+	it('leaves a drag that starts on a video to the player', () => {
+		const { node, onNext, onPrevious } = attach();
+		const video = document.createElement('video');
+		node.appendChild(video);
+
+		drag(video, 200, 100, 100, 100); // scrubbing, not paging
+
+		expect(onNext).not.toHaveBeenCalled();
+		expect(onPrevious).not.toHaveBeenCalled();
+	});
+
 	it('ignores a drag shorter than the threshold', () => {
 		const { node, onNext, onPrevious } = attach();
 

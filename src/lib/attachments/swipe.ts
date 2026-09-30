@@ -17,6 +17,9 @@ interface SwipeOptions {
  * non-interactive div trip `a11y_no_static_element_interactions`, and the element really
  * isn't interactive — every control inside it is already a real button.
  *
+ * A touch that starts on a `<video>` is left alone: dragging the player's own scrubber is
+ * horizontal travel too, and must seek rather than page.
+ *
  * ```svelte
  * <div {@attach swipe({ onPrevious: goPrevious, onNext: goNext })}>…</div>
  * ```
@@ -28,14 +31,19 @@ export function swipe({ onPrevious, onNext }: SwipeOptions): Attachment<HTMLElem
 		let yStart = -1;
 		let yPos = -1;
 
+		let tracking = false;
+
 		const start = (event: TouchEvent) => {
+			tracking = false;
 			if (event.touches.length > 1) return; // a pinch, not a swipe
+			if (event.target instanceof Element && event.target.closest('video')) return;
+			tracking = true;
 			xStart = xPos = event.touches[0].clientX;
 			yStart = yPos = event.touches[0].clientY;
 		};
 
 		const move = (event: TouchEvent) => {
-			if (event.touches.length > 1) return;
+			if (!tracking || event.touches.length > 1) return;
 			xPos = event.touches[0].clientX;
 			yPos = event.touches[0].clientY;
 		};

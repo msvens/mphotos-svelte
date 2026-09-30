@@ -1,7 +1,9 @@
 <script lang="ts">
 	import type { Snippet } from 'svelte';
+	import { Icon, Play } from 'svelte-hero-icons';
 	import { photosService } from '$lib/api/services';
 	import type { PhotoMetadata } from '$lib/api/types';
+	import { formatDuration } from '$lib/utils';
 
 	interface PhotoGridProps {
 		photos: PhotoMetadata[];
@@ -59,6 +61,17 @@
 								loading="lazy"
 							/>
 						</a>
+						{#if photo.kind === 'video'}
+							<!-- Top-right, clear of the owner overlay bar along the bottom. The thumb is the
+							     video's poster, so this badge is what tells it apart from a photo. -->
+							<div
+								class="pointer-events-none absolute top-2 right-2 z-10 flex items-center gap-1 rounded bg-black/60 px-1.5 py-0.5 text-xs text-white"
+								data-testid="video-badge"
+							>
+								<Icon src={Play} solid class="h-3 w-3" aria-hidden="true" />
+								{formatDuration(photo.duration)}
+							</div>
+						{/if}
 						{#if overlay}
 							<div class="absolute right-0 bottom-0 left-0 z-10">
 								<div class="flex w-full items-center justify-end bg-black/50 p-2">
