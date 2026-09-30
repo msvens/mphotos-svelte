@@ -250,9 +250,10 @@ describe('home page', () => {
 			await fireEvent.click(await screen.findByRole('combobox'));
 			await fireEvent.click(screen.getByRole('option', { name: 'Photostream' }));
 
-			// The server now says 'a' is out of the stream.
+			// The pick saved itself; the server now says 'a' is out of the stream. Closing the
+			// picker is what triggers the refetch.
 			vi.mocked(albumsService.getAlbumPhotos).mockResolvedValue(list());
-			await fireEvent.click(screen.getByRole('button', { name: 'SAVE' }));
+			await fireEvent.click(screen.getByRole('button', { name: 'DONE' }));
 
 			await vi.waitFor(() => expect(photosService.setPhotoAlbums).toHaveBeenCalled());
 			await vi.waitFor(() =>

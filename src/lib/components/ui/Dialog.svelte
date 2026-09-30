@@ -45,9 +45,11 @@
 		if (closeOnOk) onClose();
 	}
 
-	// Escape routes through onClose, so any guard the caller puts there still applies.
+	// Escape routes through onClose, so any guard the caller puts there still applies. A control
+	// that consumed the Escape itself (an open Select/MultiSelect list) calls preventDefault, and
+	// must not also dismiss the dialog — that silently threw away in-progress edits.
 	function handleKeydown(event: KeyboardEvent) {
-		if (open && event.key === 'Escape') onClose();
+		if (open && event.key === 'Escape' && !event.defaultPrevented) onClose();
 	}
 </script>
 

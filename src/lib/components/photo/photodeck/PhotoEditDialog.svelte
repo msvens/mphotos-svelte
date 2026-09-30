@@ -4,6 +4,7 @@
 	import { getToastState } from '$lib/stores/toast.svelte';
 	import type { PhotoMetadata, Album } from '$lib/api/types';
 	import Dialog from '$lib/components/ui/Dialog.svelte';
+	import Button from '$lib/components/ui/Button.svelte';
 	import TextField from '$lib/components/ui/TextField.svelte';
 	import MultiSelect, { type MultiSelectOption } from '$lib/components/ui/MultiSelect.svelte';
 
@@ -26,6 +27,9 @@
 	let photoChanged = $state(false);
 	let albumChanged = $state(false);
 	let saving = $state(false);
+	/** Footer is asking "Discard unsaved changes?" after a close attempt on a dirty form. */
+	let confirmingDiscard = $state(false);
+	let dirty = $derived(photoChanged || albumChanged);
 
 	let albumOptions = $derived<MultiSelectOption[]>(
 		albums.map((a) => ({ value: a.id, label: a.name }))
@@ -50,6 +54,7 @@
 			description = photo.description;
 			photoChanged = false;
 			albumChanged = false;
+			confirmingDiscard = false;
 			void loadAlbums();
 		});
 	});
@@ -67,6 +72,14 @@
 	function onAlbumChange(ids: string[]) {
 		selectedAlbumIds = ids;
 		albumChanged = true;
+	}
+
+	// Backdrop, Escape and CANCEL all land here. A dirty form asks first: closing used to drop
+	// edits silently, e.g. a backdrop click meant only to dismiss the open album list.
+	function requestClose() {
+		if (saving) return;
+		if (dirty) confirmingDiscard = true;
+		else onClose();
 	}
 
 	async function handleSave() {
@@ -107,15 +120,7 @@
 	const labelClass = 'mb-1 block text-xs text-gray-600 dark:text-gray-400';
 </script>
 
-<Dialog
-	{open}
-	onClose={() => onClose()}
-	onOk={handleSave}
-	closeOnOk={false}
-	maxWidth="lg"
-	title="Edit Photo"
-	okText={saving ? 'SAVING...' : 'SAVE'}
->
+<Dialog {open} onClose={requestClose} maxWidth="lg" title="Edit Photo">
 	<div class="space-y-4">
 		<TextField label="Title" bind:value={title} fullWidth oninput={() => (photoChanged = true)} />
 
@@ -146,4 +151,20 @@
 			fullWidth
 		/>
 	</div>
+
+	{#snippet actions()}
+		{#if confirmingDiscard}
+			<span class="mr-auto self-center text-sm text-gray-900 dark:text-white">
+				Discard unsaved changes?
+			</span>
+			<Button variant="text" onclick={() => (confirmingDiscard = false)}>KEEP EDITING</Button>
+			<Button variant="contained" color="error" onclick={() => onClose()}>DISCARD</Button>
+		{:else}
+			<Button variant="text" onclick={requestClose}>CANCEL</Button>
+			<!-- The primary action, filled so it stands out from CANCEL. -->
+			<Button variant="contained" color="primary" onclick={handleSave} disabled={saving}>
+				{saving ? 'SAVING...' : 'SAVE'}
+			</Button>
+		{/if}
+	{/snippet}
 </Dialog>

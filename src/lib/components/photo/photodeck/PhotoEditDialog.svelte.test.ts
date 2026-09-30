@@ -160,6 +160,65 @@ describe('PhotoEditDialog', () => {
 		});
 	});
 
+	describe('closing with unsaved changes', () => {
+		async function dirtyAlbums() {
+			const rendered = await openDialog();
+			const combo = screen.getByRole('combobox', { name: /Albums/ });
+			await fireEvent.click(combo);
+			await fireEvent.click(screen.getByRole('option', { name: 'Winter' }));
+			return { ...rendered, combo };
+		}
+
+		it('closes straight away when nothing changed', async () => {
+			const { onClose } = await openDialog();
+
+			await fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
+
+			expect(onClose).toHaveBeenCalledWith();
+		});
+
+		it('asks before discarding on a backdrop click', async () => {
+			const { onClose } = await dirtyAlbums();
+
+			await fireEvent.click(screen.getByRole('button', { name: 'Close dialog' }));
+
+			expect(onClose).not.toHaveBeenCalled();
+			expect(screen.getByText('Discard unsaved changes?')).toBeInTheDocument();
+		});
+
+		it('keeps editing, then saves the picks', async () => {
+			await dirtyAlbums();
+			await fireEvent.click(screen.getByRole('button', { name: 'CANCEL' }));
+
+			await fireEvent.click(screen.getByRole('button', { name: 'KEEP EDITING' }));
+			await fireEvent.click(save());
+
+			await vi.waitFor(() =>
+				expect(photosService.setPhotoAlbums).toHaveBeenCalledWith('p1', ['a1', 'a2'])
+			);
+		});
+
+		it('discards only when asked to', async () => {
+			const { onClose } = await dirtyAlbums();
+			await fireEvent.keyDown(window, { key: 'Escape' });
+
+			await fireEvent.click(screen.getByRole('button', { name: 'DISCARD' }));
+
+			expect(onClose).toHaveBeenCalledWith();
+			expect(photosService.setPhotoAlbums).not.toHaveBeenCalled();
+		});
+
+		it('lets Escape close just the open album list', async () => {
+			const { combo, onClose } = await dirtyAlbums();
+
+			await fireEvent.keyDown(combo, { key: 'Escape' });
+
+			expect(combo).toHaveAttribute('aria-expanded', 'false');
+			expect(onClose).not.toHaveBeenCalled();
+			expect(screen.queryByText('Discard unsaved changes?')).toBeNull();
+		});
+	});
+
 	describe('failure', () => {
 		it('toasts and stays open when the update rejects', async () => {
 			vi.mocked(photosService.updatePhoto).mockRejectedValue(new Error('boom'));
