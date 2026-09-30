@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, fireEvent } from '@testing-library/svelte';
-import { driveService, userService } from '$lib/api/services';
+import { capabilitiesService, driveService, userService } from '$lib/api/services';
 import { AppState } from '$lib/stores/app.svelte';
 import { renderWithApp } from '$lib/test-utils';
 import { JobState, type Job, type User } from '$lib/api/types';
@@ -17,16 +17,22 @@ vi.mock('$lib/api/services', () => ({
 		disconnectDrive: vi.fn(),
 		checkDrive: vi.fn(),
 		scheduleAddPhotosJob: vi.fn(),
+		scheduleAddVideosJob: vi.fn(),
 		getJobStatus: vi.fn()
-	}
+	},
+	capabilitiesService: { getCapabilities: vi.fn() }
 }));
 
 const job = (state: JobState, over: Partial<Job> = {}): Job => ({
 	id: 'j1',
+	kind: 'image',
 	state,
 	percent: 0,
 	numFiles: 3,
 	numProcessed: 0,
+	numAdded: 0,
+	numSkipped: 0,
+	numFailed: 0,
 	...over
 });
 
@@ -41,8 +47,12 @@ function ownerState(user: Partial<User> = {}): AppState {
 beforeEach(() => {
 	vi.mocked(driveService.isAuthenticated).mockReset().mockResolvedValue(false);
 	vi.mocked(driveService.disconnectDrive).mockReset().mockResolvedValue({ authenticated: false });
-	vi.mocked(driveService.checkDrive).mockReset().mockResolvedValue({ length: 3, files: [] });
+	vi.mocked(driveService.checkDrive).mockReset().mockResolvedValue({ images: 3, videos: 0 });
 	vi.mocked(driveService.scheduleAddPhotosJob).mockReset();
+	vi.mocked(driveService.scheduleAddVideosJob).mockReset();
+	vi.mocked(capabilitiesService.getCapabilities)
+		.mockReset()
+		.mockResolvedValue({ videoEnabled: true });
 	vi.mocked(driveService.getJobStatus).mockReset();
 	vi.mocked(userService.updateUserGDrive)
 		.mockReset()
@@ -92,28 +102,99 @@ describe('GoogleDrive', () => {
 	});
 
 	describe('import job', () => {
-		beforeEach(() => vi.useFakeTimers());
+		beforeEach(() => {
+			vi.useFakeTimers();
+			vi.mocked(driveService.isAuthenticated).mockResolvedValue(true);
+		});
 		afterEach(() => vi.useRealTimers());
 
-		it('schedules a job and polls until finished', async () => {
-			vi.mocked(driveService.isAuthenticated).mockResolvedValue(true);
-			vi.mocked(driveService.scheduleAddPhotosJob).mockResolvedValue(job(JobState.SCHEDULED));
-			vi.mocked(driveService.getJobStatus).mockResolvedValue(
-				job(JobState.FINISHED, { percent: 100, numProcessed: 3 })
-			);
-			renderWithApp(GoogleDrive, { state: ownerState({ driveFolderId: 'fid' }) });
-			await vi.advanceTimersByTimeAsync(0); // flush onMount auth check
-
+		/** Open the dialog with the given counts; returns once it shows them. */
+		async function openImport(counts = { images: 3, videos: 0 }) {
+			vi.mocked(driveService.checkDrive).mockResolvedValue(counts);
+			const rendered = renderWithApp(GoogleDrive, { state: ownerState({ driveFolderId: 'fid' }) });
+			await vi.advanceTimersByTimeAsync(0); // flush onMount auth + capabilities
 			await fireEvent.click(screen.getByRole('button', { name: 'IMPORT FROM DRIVE' }));
 			await vi.advanceTimersByTimeAsync(0); // flush checkDrive
-			await fireEvent.click(screen.getByRole('button', { name: 'START' }));
-			await vi.advanceTimersByTimeAsync(0); // flush schedule → interval created
+			return rendered;
+		}
 
+		it('shows what is new, by kind', async () => {
+			await openImport({ images: 10, videos: 1 });
+			expect(screen.getByText(/10 new images and 1 new video to import/)).toBeInTheDocument();
+		});
+
+		it('has nothing to start when the folder has nothing new', async () => {
+			await openImport({ images: 0, videos: 0 });
+			expect(screen.getByText('There is nothing new to import.')).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: 'START' })).toBeDisabled();
+		});
+
+		it('schedules only the image job when there are no videos, and polls until finished', async () => {
+			vi.mocked(driveService.scheduleAddPhotosJob).mockResolvedValue(job(JobState.SCHEDULED));
+			vi.mocked(driveService.getJobStatus).mockResolvedValue(
+				job(JobState.FINISHED, { percent: 100, numProcessed: 3, numAdded: 3 })
+			);
+			const { photos } = await openImport();
+			const load = vi.spyOn(photos, 'load').mockResolvedValue(undefined);
+
+			await fireEvent.click(screen.getByRole('button', { name: 'START' }));
+			await vi.advanceTimersByTimeAsync(0); // flush schedule
 			await vi.advanceTimersByTimeAsync(500); // one poll tick
 
+			expect(driveService.scheduleAddVideosJob).not.toHaveBeenCalled();
 			expect(driveService.getJobStatus).toHaveBeenCalledWith('j1');
-			// FINISHED stops the download → the button is enabled 'OK', not 'DOWNLOADING...'.
+			// FINISHED stops the import → the button is enabled 'OK', not 'IMPORTING...'.
 			expect(screen.getByRole('button', { name: 'OK' })).toBeInTheDocument();
+			expect(screen.getByText('Images added 3, skipped 0, failed 0.')).toBeInTheDocument();
+			// New items must reach the cached list without a reload.
+			expect(load).toHaveBeenCalledWith(true, '', true);
+		});
+
+		it('runs both jobs at once and reports video failures with the HDR hint', async () => {
+			vi.mocked(driveService.scheduleAddPhotosJob).mockResolvedValue(job(JobState.SCHEDULED));
+			vi.mocked(driveService.scheduleAddVideosJob).mockResolvedValue(
+				job(JobState.SCHEDULED, { id: 'v1', kind: 'video', numFiles: 2 })
+			);
+			vi.mocked(driveService.getJobStatus).mockImplementation(async (id) =>
+				id === 'v1'
+					? job(JobState.FINISHED, {
+							id: 'v1',
+							kind: 'video',
+							numFiles: 2,
+							numProcessed: 2,
+							numAdded: 1,
+							numFailed: 1,
+							failures: [{ name: 'clip.mov', category: 'hdr' }]
+						})
+					: job(JobState.FINISHED, { percent: 100, numProcessed: 3, numAdded: 3 })
+			);
+			await openImport({ images: 3, videos: 2 });
+
+			await fireEvent.click(screen.getByRole('button', { name: 'START' }));
+			await vi.advanceTimersByTimeAsync(0);
+			await vi.advanceTimersByTimeAsync(1000); // image (500ms) and video (1s) polls
+
+			expect(driveService.getJobStatus).toHaveBeenCalledWith('j1');
+			expect(driveService.getJobStatus).toHaveBeenCalledWith('v1');
+			expect(
+				screen.getByText('Videos added 1, skipped 0, failed 1: clip.mov (HDR video).')
+			).toBeInTheDocument();
+			expect(screen.getByText(/Turn off HDR video/)).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: 'OK' })).toBeInTheDocument();
+		});
+
+		it("shows an aborted job's error message", async () => {
+			vi.mocked(driveService.scheduleAddPhotosJob).mockResolvedValue(job(JobState.SCHEDULED));
+			vi.mocked(driveService.getJobStatus).mockResolvedValue(
+				job(JobState.ABORTED, { error: { code: 500, message: 'disk full' } })
+			);
+			const { toast } = await openImport();
+
+			await fireEvent.click(screen.getByRole('button', { name: 'START' }));
+			await vi.advanceTimersByTimeAsync(0);
+			await vi.advanceTimersByTimeAsync(500);
+
+			expect(toast.toasts[0]?.message).toBe('Job aborted: disk full');
 		});
 	});
 });
