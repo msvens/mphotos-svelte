@@ -17,7 +17,7 @@
 	import { getPhotoState } from '$lib/stores/photos.svelte';
 	import { getToastState } from '$lib/stores/toast.svelte';
 	import { colorScheme, alpha } from '$lib/colors';
-	import { modelToId } from '$lib/utils';
+	import { formatDuration, modelToId } from '$lib/utils';
 	import { createViewport } from '$lib/viewport.svelte';
 	import { swipe } from '$lib/attachments/swipe';
 	import type { PhotoMetadata } from '$lib/api/types';
@@ -87,6 +87,7 @@
 	let cs = $derived(colorScheme(app.uxConfig.photoBackgroundColor));
 	let controlClass = $derived(cs.color === '#ffffff' ? 'text-white' : 'text-gray-900');
 	let isInPhotostream = $derived(photoState.streamIds.has(currentPhoto?.id ?? ''));
+	let isVideo = $derived(currentPhoto?.kind === 'video');
 
 	// After a crop/rotate the server overwrites the file at the same URL, so append the store's
 	// edit version to force a refetch. Untouched photos get no suffix.
@@ -140,6 +141,8 @@
 			if (showOverlay) showOverlay = false;
 			return;
 		}
+		// A focused player owns the arrow keys (native seek); don't page the deck under it.
+		if (event.target instanceof HTMLMediaElement) return;
 		// Don't page the deck behind an open modal.
 		if (document.querySelector('[role="dialog"]')) return;
 		if (event.key === 'ArrowLeft') {
@@ -187,7 +190,7 @@
 		const at = index;
 		try {
 			await photosService.deletePhoto(doomed.id, true);
-			toast.success('Photo deleted');
+			toast.success(doomed.kind === 'video' ? 'Video deleted' : 'Photo deleted');
 			showDeleteDialog = false;
 
 			const remaining = photos.filter((p) => p.id !== doomed.id);
@@ -227,6 +230,30 @@
 </script>
 
 <svelte:window onkeydown={onKeydown} />
+
+<!-- The deck's main visual in both the page and the fullscreen overlay. A photo shows `photoSrc`;
+     a video plays its mp4 (by `fileName`) with the uncropped `resize` jpeg as poster, so the poster
+     has the video's own aspect ratio. Keyed on the id so navigating resets playback. -->
+{#snippet media(photo: PhotoMetadata, cls: string, photoSrc: string)}
+	{#if photo.kind === 'video'}
+		{#key photo.id}
+			<!-- svelte-ignore a11y_media_has_caption -->
+			<video
+				src={photosService.getVideoUrl(photo)}
+				poster={photosService.getPhotoResizeUrl(photo.id)}
+				width={photo.width || undefined}
+				height={photo.height || undefined}
+				controls
+				playsinline
+				preload="metadata"
+				aria-label={photo.title || 'Video'}
+				class="{cls} max-w-full"
+			></video>
+		{/key}
+	{:else}
+		<img src={photoSrc} alt={photo.title || photo.fileName} class={cls} />
+	{/if}
+{/snippet}
 
 {#if photos.length === 0}
 	<div class="flex h-[80vh] items-center justify-center">
@@ -277,11 +304,11 @@
 			class="flex h-full w-full items-center justify-center"
 			{@attach swipe({ onPrevious: goPrevious, onNext: goNext })}
 		>
-			<img
-				src={withVersion(photosService.getPhotoUrl(currentPhoto.id))}
-				alt={currentPhoto.title || currentPhoto.fileName}
-				class="h-auto max-h-full w-auto max-w-full object-contain"
-			/>
+			{@render media(
+				currentPhoto,
+				'h-auto max-h-full w-auto max-w-full object-contain',
+				withVersion(photosService.getPhotoUrl(currentPhoto.id))
+			)}
 		</div>
 	</div>
 {:else}
@@ -343,18 +370,21 @@
 						background={alpha(cs.backgroundColor, 0.5)}
 						class={controlClass}
 					/>
-					<IconButton
-						icon={Scissors}
-						onclick={() => goto(`${urlPrefix}${currentPhoto.id}/crop${searchQuery}`)}
-						title="Crop & rotate"
-						tooltipPlacement="bottom"
-						background={alpha(cs.backgroundColor, 0.5)}
-						class={controlClass}
-					/>
+					<!-- Crop/rotate is photo-only; the server rejects edits to a video. -->
+					{#if !isVideo}
+						<IconButton
+							icon={Scissors}
+							onclick={() => goto(`${urlPrefix}${currentPhoto.id}/crop${searchQuery}`)}
+							title="Crop & rotate"
+							tooltipPlacement="bottom"
+							background={alpha(cs.backgroundColor, 0.5)}
+							class={controlClass}
+						/>
+					{/if}
 					<IconButton
 						icon={Trash}
 						onclick={() => (showDeleteDialog = true)}
-						title="Delete photo"
+						title={isVideo ? 'Delete video' : 'Delete photo'}
 						tooltipPlacement="bottom"
 						background={alpha(cs.backgroundColor, 0.5)}
 						class={controlClass}
@@ -376,13 +406,13 @@
 			<!-- `relative` looks unused but IMAGE_CLASSES_MOBILE's `self-start` resolves
 			     against this flex container — don't collapse it. -->
 			<div class="relative flex w-full items-center justify-center">
-				<img
-					src={withVersion(
+				{@render media(
+					currentPhoto,
+					viewport.isMobile ? IMAGE_CLASSES_MOBILE : IMAGE_CLASSES_DESKTOP,
+					withVersion(
 						photosService.getDynamicImageUrl(currentPhoto, viewport.isPortrait, viewport.isMobile)
-					)}
-					alt={currentPhoto.title || currentPhoto.fileName}
-					class={viewport.isMobile ? IMAGE_CLASSES_MOBILE : IMAGE_CLASSES_DESKTOP}
-				/>
+					)
+				)}
 			</div>
 		</div>
 
@@ -401,6 +431,10 @@
 						<div class="space-y-1 text-sm text-gray-900 dark:text-white">
 							{#if currentPhoto.originalDate}
 								<div>Taken on {formatDate(currentPhoto.originalDate)}.</div>
+							{/if}
+
+							{#if isVideo}
+								<div>Duration: {formatDuration(currentPhoto.duration)}.</div>
 							{/if}
 
 							{#if currentPhoto.cameraModel}
@@ -437,8 +471,10 @@
 			open={showDeleteDialog}
 			onClose={() => (showDeleteDialog = false)}
 			onOk={confirmDelete}
-			title="Delete Photo?"
-			text="By removing the photo all associated image data will be deleted"
+			title={isVideo ? 'Delete Video?' : 'Delete Photo?'}
+			text={isVideo
+				? 'By removing the video all associated video and image data will be deleted'
+				: 'By removing the photo all associated image data will be deleted'}
 			okText="DELETE"
 			closeText="CANCEL"
 		/>

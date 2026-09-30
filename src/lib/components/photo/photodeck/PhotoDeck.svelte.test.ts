@@ -44,6 +44,8 @@ vi.mock('$lib/api/services', () => ({
 		getPortraitUrl: (id: string) => `/api/portraits/${id}.jpg`,
 		getLandscapeUrl: (id: string) => `/api/landscapes/${id}.jpg`,
 		getSquareUrl: (id: string) => `/api/squares/${id}.jpg`,
+		getPhotoResizeUrl: (id: string) => `/api/resizes/${id}.jpg`,
+		getVideoUrl: (p: PhotoMetadata) => `/api/images/${p.fileName}`,
 		getDynamicImageUrl: (p: PhotoMetadata, isPortrait: boolean, isMobile: boolean) => {
 			if (!isMobile) return `/api/images/${p.id}.jpg`;
 			if (isPortrait) return `/api/portraits/${p.id}.jpg`;
@@ -529,6 +531,58 @@ describe('PhotoDeck', () => {
 			expect(screen.getByRole('heading', { name: 'Untitled' })).toBeInTheDocument();
 			expect(screen.queryByText(/Focal length/)).toBeNull();
 			expect(screen.queryByText(/Taken on/)).toBeNull();
+		});
+	});
+
+	describe('videos', () => {
+		const video = photo('v', {
+			kind: 'video',
+			fileName: 'v.mp4',
+			duration: 83,
+			width: 1920,
+			height: 1080
+		});
+		const withVideo = { ...base, photos: [photo('a'), video, photo('c')], photoId: 'v' };
+		const player = () => screen.getByLabelText('Title v') as HTMLVideoElement;
+
+		it('plays the mp4 by fileName, with the uncropped resize jpeg as poster', () => {
+			renderWithApp(PhotoDeck, { state: appState(), props: withVideo });
+
+			expect(player().tagName).toBe('VIDEO');
+			expect(player().getAttribute('src')).toBe('/api/images/v.mp4');
+			expect(player().getAttribute('poster')).toBe('/api/resizes/v.jpg');
+			expect(screen.queryByRole('img')).toBeNull();
+		});
+
+		it('plays the same mp4 in the fullscreen overlay', async () => {
+			renderWithApp(PhotoDeck, { state: appState(), props: withVideo });
+
+			await fireEvent.click(screen.getByRole('button', { name: 'Enter fullscreen' }));
+
+			expect(player().getAttribute('src')).toBe('/api/images/v.mp4');
+		});
+
+		it('leaves the arrow keys to a focused player', async () => {
+			renderWithApp(PhotoDeck, { state: appState(), props: withVideo });
+
+			await fireEvent.keyDown(player(), { key: 'ArrowRight' });
+			expect(goto).not.toHaveBeenCalled();
+
+			// Unfocused, the arrows still page the deck.
+			await fireEvent.keyDown(window, { key: 'ArrowRight' });
+			expect(goto).toHaveBeenCalledWith('/photo/c');
+		});
+
+		it('shows the duration in the details', () => {
+			renderWithApp(PhotoDeck, { state: appState(), props: withVideo });
+			expect(screen.getByText('Duration: 1:23.')).toBeInTheDocument();
+		});
+
+		it('offers no crop, since editing is photo-only', () => {
+			renderWithApp(PhotoDeck, { state: appState(), props: { ...withVideo, editControls: true } });
+
+			expect(screen.queryByRole('button', { name: 'Crop & rotate' })).toBeNull();
+			expect(screen.getByRole('button', { name: 'Delete video' })).toBeInTheDocument();
 		});
 	});
 

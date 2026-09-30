@@ -155,7 +155,16 @@
 	}
 </script>
 
-{#if showPreview}
+<!-- Crop/rotate is photo-only (the server rejects video edits). The deck hides the button, but the
+     route is still reachable by url, so guard here once for all the crop routes. -->
+{#if photo.kind === 'video'}
+	<div
+		class="flex min-h-[calc(100dvh-var(--nav-height))] flex-col items-center justify-center gap-3 bg-black"
+	>
+		<div class="text-white">Videos can't be cropped or rotated.</div>
+		<a href={backUrl} class="text-blue-400 underline hover:text-blue-300">Back to the video</a>
+	</div>
+{:else if showPreview}
 	<div class="flex min-h-[calc(100dvh-var(--nav-height))] flex-col">
 		<div class="relative flex items-center justify-center" style={containerStyle}>
 			<div class="absolute top-4 right-4 z-10 p-2">

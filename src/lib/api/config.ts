@@ -22,6 +22,8 @@ export const API_ENDPOINTS = {
 	photoEditPreview: (id: string) => `/api/photos/${id}/edit/preview`,
 	photoMetadata: (id: string) => `/api/photos/${id}`,
 	photoFile: (id: string) => `/api/images/${id}.jpg`,
+	// The stored original by its real name: `<id>.jpg` for a photo, `<id>.mp4` for a video.
+	photoOriginal: (fileName: string) => `/api/images/${fileName}`,
 	photoThumb: (id: string) => `/api/thumbs/${id}.jpg`,
 	photoLandscape: (id: string) => `/api/landscapes/${id}.jpg`,
 	photoPortrait: (id: string) => `/api/portraits/${id}.jpg`,
@@ -61,6 +63,8 @@ export const API_ENDPOINTS = {
 
 	// Drive
 	driveCheck: '/api/drive/check',
+
+	capabilities: '/api/capabilities',
 
 	// Camera endpoints
 	cameras: '/api/cameras',

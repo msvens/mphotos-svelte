@@ -145,4 +145,24 @@ describe('PhotoGrid', () => {
 			expect(onclick).toHaveBeenCalledOnce();
 		});
 	});
+
+	it('badges a video tile with its duration, and leaves photos alone', () => {
+		render(PhotoGrid, {
+			props: {
+				photos: [photo('a'), photo('v', { kind: 'video', fileName: 'v.mp4', duration: 83 })],
+				columns: 3,
+				spacing: 0,
+				linkTo: '/photo'
+			}
+		});
+
+		const badges = screen.getAllByTestId('video-badge');
+		expect(badges).toHaveLength(1);
+		expect(badges[0]).toHaveTextContent('1:23');
+		// The thumb is the poster jpeg keyed by id, never the mp4 fileName.
+		expect(screen.getByRole('img', { name: 'Title v' })).toHaveAttribute(
+			'src',
+			'/api/thumbs/v.jpg'
+		);
+	});
 });

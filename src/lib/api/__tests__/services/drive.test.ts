@@ -30,9 +30,9 @@ describe('driveService', () => {
 		expect(api.get).toHaveBeenCalledWith('/api/drive/disconnect');
 	});
 
-	it('checkDrive fetches drive files', async () => {
-		vi.mocked(api.get).mockResolvedValue({ files: [] });
-		await driveService.checkDrive();
+	it('checkDrive fetches the new-item counts by kind', async () => {
+		vi.mocked(api.get).mockResolvedValue({ images: 2, videos: 1 });
+		expect(await driveService.checkDrive()).toEqual({ images: 2, videos: 1 });
 		expect(api.get).toHaveBeenCalledWith('/api/drive/check');
 	});
 
@@ -41,6 +41,13 @@ describe('driveService', () => {
 		const result = await driveService.scheduleAddPhotosJob();
 		expect(api.post).toHaveBeenCalledWith('/api/drive/job/schedule');
 		expect(result.id).toBe('j1');
+	});
+
+	it('scheduleAddVideosJob posts to the video schedule endpoint', async () => {
+		vi.mocked(api.post).mockResolvedValue({ id: 'v1', kind: 'video', state: 'SCHEDULED' });
+		const result = await driveService.scheduleAddVideosJob();
+		expect(api.post).toHaveBeenCalledWith('/api/drive/video/job/schedule');
+		expect(result.id).toBe('v1');
 	});
 
 	it('getJobStatus fetches job by id', async () => {

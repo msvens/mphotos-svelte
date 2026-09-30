@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { api } from '../../../api/client';
-import { photosService } from '../../../api/services/photos';
+import { photosService, isJob } from '../../../api/services/photos';
 import { API_ENDPOINTS } from '../../../api/config';
-import type { PhotoMetadata } from '../../../api/types';
+import { JobState, type PhotoMetadata } from '../../../api/types';
 
 vi.mock('../../../api/client', () => ({
 	api: {
@@ -16,6 +16,7 @@ vi.mock('../../../api/client', () => ({
 
 const mockPhoto: PhotoMetadata = {
 	id: 'p1',
+	kind: 'photo',
 	md5: 'abc',
 	source: 'local',
 	sourceDate: '2024-01-01',
@@ -203,6 +204,30 @@ describe('photosService', () => {
 			expect(photosService.getLandscapeUrl('p1')).toBe('/api/landscapes/p1.jpg');
 			expect(photosService.getPortraitUrl('p1')).toBe('/api/portraits/p1.jpg');
 			expect(photosService.getSquareUrl('p1')).toBe('/api/squares/p1.jpg');
+		});
+
+		it('builds the video URL from fileName, not the id', () => {
+			const video = { ...mockPhoto, kind: 'video' as const, fileName: 'p1.mp4' };
+			expect(photosService.getVideoUrl(video)).toBe('/api/images/p1.mp4');
+		});
+	});
+
+	describe('isJob', () => {
+		it('tells an async upload Job from a created Photo', () => {
+			expect(isJob(mockPhoto)).toBe(false);
+			expect(
+				isJob({
+					id: 'j1',
+					kind: 'video',
+					state: JobState.SCHEDULED,
+					percent: 0,
+					numFiles: 1,
+					numProcessed: 0,
+					numAdded: 0,
+					numSkipped: 0,
+					numFailed: 0
+				})
+			).toBe(true);
 		});
 	});
 

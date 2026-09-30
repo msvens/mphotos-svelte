@@ -1,4 +1,4 @@
-import type { PhotoMetadata, PhotoList, AffectedItems, Album } from '../types';
+import type { PhotoMetadata, PhotoList, AffectedItems, Album, Job } from '../types';
 import { API_ENDPOINTS, createApiUrl } from '../config';
 import { api } from '../client';
 
@@ -8,6 +8,14 @@ export interface EditPhotoParams {
 	y: number;
 	width: number;
 	height: number;
+}
+
+/**
+ * `uploadLocalPhoto` returns a Photo for an image, but a Job for a video (transcoding is async).
+ * A Job is the one with a `state`.
+ */
+export function isJob(result: PhotoMetadata | Job): result is Job {
+	return 'state' in result;
 }
 
 export interface PhotosService {
@@ -23,7 +31,7 @@ export interface PhotosService {
 	): Promise<PhotoMetadata>;
 	editPhoto(id: string, params: EditPhotoParams): Promise<PhotoMetadata>;
 	getEditPreviewUrl(id: string, params: EditPhotoParams): string;
-	uploadLocalPhoto(file: File): Promise<PhotoMetadata>;
+	uploadLocalPhoto(file: File): Promise<PhotoMetadata | Job>;
 	deletePhoto(id: string, removeFiles: boolean): Promise<PhotoMetadata>;
 	deletePhotos(removeFiles: boolean): Promise<PhotoList>;
 	setPhotoAlbums(photoId: string, albumIds: string[]): Promise<AffectedItems>;
@@ -34,6 +42,7 @@ export interface PhotosService {
 	getPhotoThumbUrl(id: string): string;
 	getPhotoResizeUrl(id: string): string;
 	getPhotoUrl(id: string): string;
+	getVideoUrl(photo: PhotoMetadata): string;
 	getPhotoAspect(photo: PhotoMetadata): 'portrait' | 'landscape' | 'square';
 	getDynamicImageUrl(photo: PhotoMetadata, isPortrait: boolean, isMobile: boolean): string;
 }
@@ -107,7 +116,7 @@ export const photosService: PhotosService = {
 		formData.append('image', file, file.name);
 		formData.append('sourceId', file.name);
 		formData.append('sourceDate', new Date(file.lastModified).toISOString());
-		return api.post<PhotoMetadata>('/api/local/upload', formData);
+		return api.post<PhotoMetadata | Job>('/api/local/upload', formData);
 	},
 
 	async deletePhoto(id: string, removeFiles: boolean) {
@@ -150,6 +159,12 @@ export const photosService: PhotosService = {
 
 	getPhotoUrl(id: string) {
 		return API_ENDPOINTS.photoFile(id);
+	},
+
+	// Built from `fileName`, not the id: a video's original is `<id>.mp4`, while every size
+	// variant (thumb, resize, …) is a `<id>.jpg` rendered from its poster.
+	getVideoUrl(photo: PhotoMetadata) {
+		return API_ENDPOINTS.photoOriginal(photo.fileName);
 	},
 
 	getPhotoAspect(photo: PhotoMetadata): 'portrait' | 'landscape' | 'square' {

@@ -9,8 +9,14 @@ export interface AffectedItems {
 	numItems: number;
 }
 
+export type MediaKind = 'photo' | 'video';
+
 export interface PhotoMetadata {
 	id: string;
+	/** A video shares every field with a photo; its original is `<id>.mp4` (see `fileName`). */
+	kind: MediaKind;
+	/** Video length in seconds; absent for photos. */
+	duration?: number;
 	md5: string;
 	source: string;
 	sourceDate: string;
@@ -167,14 +173,15 @@ export interface AuthUser {
 	authenticated: boolean;
 }
 
-export interface DriveFile {
-	id: string;
-	name: string;
+/** Not-yet-imported items in the Drive folder, by kind. */
+export interface DriveCheck {
+	images: number;
+	videos: number;
 }
 
-export interface DriveFiles {
-	length: number;
-	files: DriveFile[];
+/** Server features the UI needs to know about. `videoEnabled` = ffmpeg is installed. */
+export interface Capabilities {
+	videoEnabled: boolean;
 }
 
 export enum JobState {
@@ -184,11 +191,23 @@ export enum JobState {
 	ABORTED = 'ABORTED'
 }
 
+/** A file a job could not import; `category` is e.g. `hdr`, `truncated`, `no-video-stream`. */
+export interface JobFailure {
+	name: string;
+	category: string;
+}
+
 export interface Job {
 	id: string;
+	kind: 'image' | 'video';
 	state: JobState;
 	percent: number;
 	numFiles: number;
 	numProcessed: number;
-	error?: string;
+	numAdded: number;
+	numSkipped: number;
+	numFailed: number;
+	failures?: JobFailure[];
+	/** Whole-job abort only; per-file video failures land in `failures`. */
+	error?: { code: number; message: string };
 }

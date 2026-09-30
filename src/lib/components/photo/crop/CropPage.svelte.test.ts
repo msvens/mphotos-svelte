@@ -53,6 +53,24 @@ beforeEach(() => {
 });
 
 describe('CropPage', () => {
+	it('refuses to edit a video, with a way back', () => {
+		const state = new AppState();
+		state.loading = false;
+		const video = { ...photo, kind: 'video', fileName: 'p1.mp4' } as PhotoMetadata;
+		renderWithApp(CropPage, {
+			state,
+			photos: new PhotoState(),
+			props: { photo: video, backUrl: '/photo/p1' }
+		});
+
+		expect(screen.getByText("Videos can't be cropped or rotated.")).toBeInTheDocument();
+		expect(screen.getByRole('link', { name: 'Back to the video' })).toHaveAttribute(
+			'href',
+			'/photo/p1'
+		);
+		expect(screen.queryByRole('button', { name: 'Save' })).toBeNull();
+	});
+
 	it('shows the image and the toolbar', () => {
 		render();
 		expect(screen.getByAltText('Sunrise')).toBeInTheDocument();
