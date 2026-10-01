@@ -67,10 +67,11 @@
      still render the overlay's dark bar for guests. -->
 {#snippet streamOverlay(photo: PhotoMetadata)}
 	{@const inStream = photoState.streamIds.has(photo.id)}
-	<div class="flex items-center gap-2">
+	<!-- Smaller below `sm`: on a phone the tiles are ~120px and full-size icons hid the photo. -->
+	<div class="flex items-center gap-3 sm:gap-2">
 		<Tooltip title="Select albums" placement="top">
 			<button onclick={() => openAlbums(photo)} aria-label="Select albums" class="cursor-pointer">
-				<Icon src={Folder} class="h-6 w-6 text-white" />
+				<Icon src={Folder} class="h-4 w-4 text-white sm:h-6 sm:w-6" />
 			</button>
 		</Tooltip>
 		<Tooltip title={inStream ? 'Remove from photostream' : 'Add to photostream'} placement="top">
@@ -79,7 +80,7 @@
 				aria-label={inStream ? 'Remove from photostream' : 'Add to photostream'}
 				class="cursor-pointer"
 			>
-				<Icon src={inStream ? BookOpen : ArchiveBox} class="h-6 w-6 text-white" />
+				<Icon src={inStream ? BookOpen : ArchiveBox} class="h-4 w-4 text-white sm:h-6 sm:w-6" />
 			</button>
 		</Tooltip>
 	</div>

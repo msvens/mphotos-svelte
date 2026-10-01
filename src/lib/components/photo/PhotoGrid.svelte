@@ -74,7 +74,7 @@
 						{/if}
 						{#if overlay}
 							<div class="absolute right-0 bottom-0 left-0 z-10">
-								<div class="flex w-full items-center justify-end bg-black/50 p-2">
+								<div class="flex w-full items-center justify-end bg-black/50 p-1 sm:p-2">
 									{@render overlay(photo, i)}
 								</div>
 							</div>
