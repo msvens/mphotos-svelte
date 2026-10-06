@@ -63,10 +63,13 @@ function pickFiles(container: HTMLElement, files: File[], input = filesInput(con
 	return fireEvent.change(input, { target: { files } });
 }
 
-/** Confirm the "N new" dialog once the pick has been hashed and checked. */
-async function confirmUpload() {
-	await fireEvent.click(await screen.findByRole('button', { name: 'UPLOAD' }));
+/** The dialog's final message, once the pick has been checked (and any upload has finished). */
+async function finalMessage() {
+	await screen.findByRole('button', { name: 'CLOSE' });
+	return screen.getByRole('dialog').querySelector('p')?.textContent?.trim();
 }
+
+const allKnown = async (md5s: string[]) => Object.fromEntries(md5s.map((m) => [m, true]));
 
 beforeEach(() => {
 	vi.mocked(photosService.uploadLocalPhoto)
@@ -92,178 +95,104 @@ describe('LocalDrive', () => {
 		);
 	});
 
-	it('uploads each chosen file once, in order', async () => {
+	it('offers a folder picker', async () => {
+		const { container } = renderWithApp(LocalDrive);
+		const click = vi.spyOn(folderInput(container), 'click');
+		await fireEvent.click(screen.getByRole('button', { name: 'CHOOSE FOLDER' }));
+		expect(click).toHaveBeenCalled();
+	});
+
+	it('uploads the new files straight after picking, in order', async () => {
 		const { container } = renderWithApp(LocalDrive);
 		const [a, b] = [jpeg('a.jpg'), jpeg('b.jpg')];
 
 		await pickFiles(container, [a, b]);
-		await confirmUpload();
 
-		await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalledTimes(2));
+		expect(await finalMessage()).toBe('Uploaded 2 new photos.');
 		expect(photosService.uploadLocalPhoto).toHaveBeenNthCalledWith(1, a);
 		expect(photosService.uploadLocalPhoto).toHaveBeenNthCalledWith(2, b);
 	});
 
-	it('reports already-uploaded files as skipped, not failed', async () => {
-		vi.mocked(photosService.uploadLocalPhoto)
-			.mockRejectedValueOnce(new Error('Photo already exists'))
-			.mockResolvedValue({} as PhotoMetadata);
-		const { container, toast } = renderWithApp(LocalDrive);
+	it('uploads only the files the server does not have, and counts only those', async () => {
+		vi.mocked(photosService.checkLocalPhotos).mockResolvedValue({
+			'md5:a.jpg': false,
+			'md5:b.jpg': true,
+			'md5:c.jpg': false
+		});
+		const { container } = renderWithApp(LocalDrive);
+		const [a, b, c] = [jpeg('a.jpg'), jpeg('b.jpg'), jpeg('c.jpg')];
 
-		await pickFiles(container, [jpeg('a.jpg'), jpeg('b.jpg')]);
-		await confirmUpload();
+		await pickFiles(container, [a, b, c], folderInput(container));
 
-		await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalledTimes(2));
-		// A duplicate is benign: informational, and named as a skip.
-		await vi.waitFor(() => expect(toast.toasts[0]?.severity).toBe('info'));
-		expect(toast.toasts[0].message).toBe('Uploaded 1, skipped 1 already uploaded.');
+		expect(await finalMessage()).toBe('Uploaded 2 new photos.');
+		expect(photosService.checkLocalPhotos).toHaveBeenCalledWith([
+			'md5:a.jpg',
+			'md5:b.jpg',
+			'md5:c.jpg'
+		]);
+		expect(photosService.uploadLocalPhoto).toHaveBeenCalledTimes(2);
+		expect(photosService.uploadLocalPhoto).toHaveBeenNthCalledWith(1, a);
+		expect(photosService.uploadLocalPhoto).toHaveBeenNthCalledWith(2, c);
 	});
 
-	it('flags genuine failures as an error', async () => {
-		vi.mocked(photosService.uploadLocalPhoto)
-			.mockRejectedValueOnce(new Error('boom'))
-			.mockResolvedValue({} as PhotoMetadata);
-		const { container, toast } = renderWithApp(LocalDrive);
+	it('uploads identical files once', async () => {
+		const { container } = renderWithApp(LocalDrive);
+		const first = jpeg('a.jpg', 'same');
 
-		await pickFiles(container, [jpeg('a.jpg'), jpeg('b.jpg')]);
-		await confirmUpload();
+		await pickFiles(container, [first, jpeg('copy.jpg', 'same')], folderInput(container));
 
-		await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalledTimes(2));
-		await vi.waitFor(() => expect(toast.toasts[0]?.severity).toBe('error'));
-		expect(toast.toasts[0].message).toBe('Uploaded 1, failed 1.');
+		expect(await finalMessage()).toBe('Uploaded 1 new photo.');
+		expect(photosService.checkLocalPhotos).toHaveBeenCalledWith(['md5:same']);
+		expect(photosService.uploadLocalPhoto).toHaveBeenCalledTimes(1);
+		expect(photosService.uploadLocalPhoto).toHaveBeenCalledWith(first);
 	});
 
-	it('refreshes the photo list after a successful upload', async () => {
-		// Without this, new uploads sit outside the cached list until a full reload — they
-		// go missing from the stream, and clicking one from a filtered view opens the wrong photo.
-		const { container, state, photos } = renderWithApp(LocalDrive);
-		const load = vi.spyOn(photos, 'load').mockResolvedValue(undefined);
+	it('never hashes unsupported files', async () => {
+		const { container } = renderWithApp(LocalDrive);
+		const notes = new File(['n'], 'notes.txt', { type: 'text/plain' });
+		const heic = new File(['h'], 'IMG.heic', { type: 'image/heic' });
 
-		await pickFiles(container, [jpeg('a.jpg')]);
-		await confirmUpload();
+		await pickFiles(
+			container,
+			[jpeg('a.jpg'), notes, heic, jpeg('._a.jpg')],
+			folderInput(container)
+		);
 
-		await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalled());
-		expect(load).toHaveBeenCalledWith(state.isUser, state.user.photoStreamAlbumId, true);
+		expect(await finalMessage()).toBe('Uploaded 1 new photo.');
+		expect(md5File).toHaveBeenCalledTimes(1);
 	});
 
-	it('does not refresh when nothing new is uploaded', async () => {
-		vi.mocked(photosService.uploadLocalPhoto).mockRejectedValue(new Error('Photo already exists'));
-		const { container, photos } = renderWithApp(LocalDrive);
-		const load = vi.spyOn(photos, 'load').mockResolvedValue(undefined);
-
-		await pickFiles(container, [jpeg('a.jpg')]);
-		await confirmUpload();
-
-		await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalled());
-		expect(load).not.toHaveBeenCalled();
-	});
-
-	describe('checking before upload', () => {
-		it('offers a folder picker', async () => {
-			const { container } = renderWithApp(LocalDrive);
-			const click = vi.spyOn(folderInput(container), 'click');
-			await fireEvent.click(screen.getByRole('button', { name: 'CHOOSE FOLDER' }));
-			expect(click).toHaveBeenCalled();
-		});
-
-		it('uploads only the files the server does not have', async () => {
-			vi.mocked(photosService.checkLocalPhotos).mockResolvedValue({
-				'md5:a.jpg': false,
-				'md5:b.jpg': true,
-				'md5:c.jpg': false
-			});
-			const { container } = renderWithApp(LocalDrive);
-			const [a, b, c] = [jpeg('a.jpg'), jpeg('b.jpg'), jpeg('c.jpg')];
-
-			await pickFiles(container, [a, b, c], folderInput(container));
-			expect(await screen.findByText('2 new of 3 files.')).toBeInTheDocument();
-			expect(photosService.checkLocalPhotos).toHaveBeenCalledWith([
-				'md5:a.jpg',
-				'md5:b.jpg',
-				'md5:c.jpg'
-			]);
-			await confirmUpload();
-
-			await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalledTimes(2));
-			expect(photosService.uploadLocalPhoto).toHaveBeenNthCalledWith(1, a);
-			expect(photosService.uploadLocalPhoto).toHaveBeenNthCalledWith(2, c);
-		});
-
-		it('uploads identical files once and says so', async () => {
-			const { container } = renderWithApp(LocalDrive);
-			const first = jpeg('a.jpg', 'same');
-
-			await pickFiles(container, [first, jpeg('copy.jpg', 'same')], folderInput(container));
-			expect(
-				await screen.findByText('1 duplicate within the selection skipped.')
-			).toBeInTheDocument();
-			expect(photosService.checkLocalPhotos).toHaveBeenCalledWith(['md5:same']);
-			await confirmUpload();
-
-			await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalledTimes(1));
-			expect(photosService.uploadLocalPhoto).toHaveBeenCalledWith(first);
-		});
-
-		it('skips unsupported files without hashing them', async () => {
-			const { container } = renderWithApp(LocalDrive);
-			const notes = new File(['n'], 'notes.txt', { type: 'text/plain' });
-			const heic = new File(['h'], 'IMG.heic', { type: 'image/heic' });
-			const twin = jpeg('._a.jpg');
-
-			await pickFiles(container, [jpeg('a.jpg'), notes, heic, twin], folderInput(container));
-			expect(await screen.findByText('3 unsupported files skipped.')).toBeInTheDocument();
-			expect(md5File).toHaveBeenCalledTimes(1);
-		});
-
-		it('names the files that are already uploaded when nothing is new', async () => {
-			vi.mocked(photosService.checkLocalPhotos).mockImplementation(async (md5s) =>
-				Object.fromEntries(md5s.map((m) => [m, true]))
-			);
+	describe('nothing new', () => {
+		it('names the files that are already uploaded, with only a close button', async () => {
+			vi.mocked(photosService.checkLocalPhotos).mockImplementation(allKnown);
 			const { container } = renderWithApp(LocalDrive);
 
 			await pickFiles(container, [jpeg('a.jpg'), jpeg('b.jpg'), jpeg('c.jpg')]);
-			expect(
-				await screen.findByText(
-					'Nothing new to upload: a.jpg, b.jpg and c.jpg are already uploaded.'
-				)
-			).toBeInTheDocument();
-			expect(screen.getByRole('button', { name: 'UPLOAD' })).toBeDisabled();
+
+			expect(await finalMessage()).toBe(
+				'Nothing new to upload: a.jpg, b.jpg and c.jpg are already uploaded.'
+			);
+			expect(screen.queryByRole('button', { name: 'STOP' })).not.toBeInTheDocument();
+			expect(photosService.uploadLocalPhoto).not.toHaveBeenCalled();
 		});
 
 		it('names a single already-uploaded file', async () => {
-			vi.mocked(photosService.checkLocalPhotos).mockResolvedValue({ 'md5:a.jpg': true });
+			vi.mocked(photosService.checkLocalPhotos).mockImplementation(allKnown);
 			const { container } = renderWithApp(LocalDrive);
 
 			await pickFiles(container, [jpeg('a.jpg')]);
-			expect(
-				await screen.findByText('Nothing new to upload: a.jpg is already uploaded.')
-			).toBeInTheDocument();
+			expect(await finalMessage()).toBe('Nothing new to upload: a.jpg is already uploaded.');
 		});
 
-		it('lists already-uploaded files when there are too many to name', async () => {
-			vi.mocked(photosService.checkLocalPhotos).mockImplementation(async (md5s) =>
-				Object.fromEntries(md5s.map((m) => [m, true]))
+		it('counts instead of naming when there are many', async () => {
+			vi.mocked(photosService.checkLocalPhotos).mockImplementation(allKnown);
+			const { container } = renderWithApp(LocalDrive);
+
+			await pickFiles(
+				container,
+				['a', 'b', 'c', 'd'].map((n) => jpeg(`${n}.jpg`))
 			);
-			const { container } = renderWithApp(LocalDrive);
-			const files = ['a', 'b', 'c', 'd'].map((n) => jpeg(`${n}.jpg`));
-
-			await pickFiles(container, files, folderInput(container));
-			expect(
-				await screen.findByText('Nothing new to upload: all 4 files are already uploaded.')
-			).toBeInTheDocument();
-			expect(screen.getByText('d.jpg')).toBeInTheDocument();
-		});
-
-		it('lists already-uploaded files alongside the new ones', async () => {
-			vi.mocked(photosService.checkLocalPhotos).mockResolvedValue({
-				'md5:a.jpg': false,
-				'md5:b.jpg': true
-			});
-			const { container } = renderWithApp(LocalDrive);
-
-			await pickFiles(container, [jpeg('a.jpg'), jpeg('b.jpg')]);
-			expect(await screen.findByText('Show already uploaded')).toBeInTheDocument();
-			expect(screen.getByText('b.jpg')).toBeInTheDocument();
+			expect(await finalMessage()).toBe('Nothing new to upload: all 4 files are already uploaded.');
 		});
 
 		it('does not ask the server when nothing is supported', async () => {
@@ -271,37 +200,35 @@ describe('LocalDrive', () => {
 			const notes = new File(['n'], 'notes.txt', { type: 'text/plain' });
 
 			await pickFiles(container, [notes], folderInput(container));
-			expect(
-				await screen.findByText('None of the chosen files can be uploaded.')
-			).toBeInTheDocument();
+			expect(await finalMessage()).toBe('None of the chosen files can be uploaded.');
 			expect(photosService.checkLocalPhotos).not.toHaveBeenCalled();
 		});
+	});
 
-		it('reports a failed check and uploads nothing', async () => {
-			vi.mocked(photosService.checkLocalPhotos).mockRejectedValue(new Error('boom'));
-			const { container, toast } = renderWithApp(LocalDrive);
+	it('reports a failed check and uploads nothing', async () => {
+		vi.mocked(photosService.checkLocalPhotos).mockRejectedValue(new Error('boom'));
+		const { container, toast } = renderWithApp(LocalDrive);
 
-			await pickFiles(container, [jpeg('a.jpg')]);
+		await pickFiles(container, [jpeg('a.jpg')]);
 
-			await vi.waitFor(() => expect(toast.toasts[0]?.severity).toBe('error'));
-			expect(toast.toasts[0].message).toBe('Failed to check which files are new');
-			expect(screen.queryByRole('button', { name: 'UPLOAD' })).not.toBeInTheDocument();
-		});
+		await vi.waitFor(() => expect(toast.toasts[0]?.severity).toBe('error'));
+		expect(toast.toasts[0].message).toBe('Failed to check which files are new');
+		expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
+		expect(photosService.uploadLocalPhoto).not.toHaveBeenCalled();
+	});
 
-		it('uploads nothing when the dialog is cancelled', async () => {
-			const { container } = renderWithApp(LocalDrive);
+	it('closes the dialog with CLOSE', async () => {
+		const { container } = renderWithApp(LocalDrive);
 
-			await pickFiles(container, [jpeg('a.jpg')]);
-			await screen.findByText('1 new of 1 file.');
-			await fireEvent.click(screen.getByRole('button', { name: 'CANCEL' }));
+		await pickFiles(container, [jpeg('a.jpg')]);
+		await finalMessage();
+		await fireEvent.click(screen.getByRole('button', { name: 'CLOSE' }));
 
-			await vi.waitFor(() =>
-				expect(screen.queryByRole('button', { name: 'UPLOAD' })).not.toBeInTheDocument()
-			);
-			expect(photosService.uploadLocalPhoto).not.toHaveBeenCalled();
-		});
+		await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
+	});
 
-		it('stops hashing when cancelled', async () => {
+	describe('STOP', () => {
+		it('while checking: closes without asking the server or uploading', async () => {
 			let finishFirst!: (md5: string) => void;
 			vi.mocked(md5File).mockImplementationOnce(
 				() => new Promise((resolve) => (finishFirst = resolve))
@@ -309,24 +236,83 @@ describe('LocalDrive', () => {
 			const { container } = renderWithApp(LocalDrive);
 
 			await pickFiles(container, [jpeg('a.jpg'), jpeg('b.jpg')]);
-			await fireEvent.click(await screen.findByRole('button', { name: 'CANCEL' }));
+			await fireEvent.click(await screen.findByRole('button', { name: 'STOP' }));
 			finishFirst('md5:a.jpg');
 
-			await vi.waitFor(() =>
-				expect(screen.getByRole('button', { name: 'CHOOSE FILES' })).toBeEnabled()
-			);
+			await vi.waitFor(() => expect(screen.queryByRole('dialog')).not.toBeInTheDocument());
 			expect(md5File).toHaveBeenCalledTimes(1);
 			expect(photosService.checkLocalPhotos).not.toHaveBeenCalled();
 		});
 
-		it('clears the picker so the same folder can be picked again', async () => {
+		it('while uploading: finishes the current file, then stops', async () => {
+			let finishFirst!: (photo: PhotoMetadata) => void;
+			vi.mocked(photosService.uploadLocalPhoto).mockImplementationOnce(
+				() => new Promise((resolve) => (finishFirst = resolve))
+			);
 			const { container } = renderWithApp(LocalDrive);
-			const input = folderInput(container);
-			const cleared = vi.spyOn(input, 'value', 'set');
 
-			await pickFiles(container, [jpeg('a.jpg')], input);
-			expect(cleared).toHaveBeenCalledWith('');
+			await pickFiles(container, [jpeg('a.jpg'), jpeg('b.jpg'), jpeg('c.jpg')]);
+			await screen.findByText('Uploading 1 of 3 new files');
+			await fireEvent.click(screen.getByRole('button', { name: 'STOP' }));
+			expect(screen.getByRole('button', { name: 'STOPPING...' })).toBeDisabled();
+			finishFirst({} as PhotoMetadata);
+
+			expect(await finalMessage()).toBe('Stopped. Uploaded 1 of 3 new photos.');
+			expect(photosService.uploadLocalPhoto).toHaveBeenCalledTimes(1);
 		});
+	});
+
+	describe('outcome', () => {
+		it('mentions a file that was uploaded elsewhere after the check', async () => {
+			vi.mocked(photosService.uploadLocalPhoto)
+				.mockRejectedValueOnce(new Error('Photo already exists'))
+				.mockResolvedValue({} as PhotoMetadata);
+			const { container } = renderWithApp(LocalDrive);
+
+			await pickFiles(container, [jpeg('a.jpg'), jpeg('b.jpg')]);
+			expect(await finalMessage()).toBe('Uploaded 1 of 2 new photos, 1 was already uploaded.');
+		});
+
+		it('flags genuine failures', async () => {
+			vi.mocked(photosService.uploadLocalPhoto)
+				.mockRejectedValueOnce(new Error('boom'))
+				.mockResolvedValue({} as PhotoMetadata);
+			const { container } = renderWithApp(LocalDrive);
+
+			await pickFiles(container, [jpeg('a.jpg'), jpeg('b.jpg')]);
+			expect(await finalMessage()).toBe('Uploaded 1 of 2 new photos, failed 1.');
+			expect(screen.getByText('Uploaded 1 of 2 new photos, failed 1.')).toHaveClass('text-red-700');
+		});
+
+		it('refreshes the photo list after a successful upload', async () => {
+			// Without this, new uploads sit outside the cached list until a full reload — they
+			// go missing from the stream, and clicking one from a filtered view opens the wrong photo.
+			const { container, state, photos } = renderWithApp(LocalDrive);
+			const load = vi.spyOn(photos, 'load').mockResolvedValue(undefined);
+
+			await pickFiles(container, [jpeg('a.jpg')]);
+			await finalMessage();
+			expect(load).toHaveBeenCalledWith(state.isUser, state.user.photoStreamAlbumId, true);
+		});
+
+		it('does not refresh when nothing was uploaded', async () => {
+			vi.mocked(photosService.uploadLocalPhoto).mockRejectedValue(new Error('boom'));
+			const { container, photos } = renderWithApp(LocalDrive);
+			const load = vi.spyOn(photos, 'load').mockResolvedValue(undefined);
+
+			await pickFiles(container, [jpeg('a.jpg')]);
+			await finalMessage();
+			expect(load).not.toHaveBeenCalled();
+		});
+	});
+
+	it('clears the picker so the same folder can be picked again', async () => {
+		const { container } = renderWithApp(LocalDrive);
+		const input = folderInput(container);
+		const cleared = vi.spyOn(input, 'value', 'set');
+
+		await pickFiles(container, [jpeg('a.jpg')], input);
+		expect(cleared).toHaveBeenCalledWith('');
 	});
 
 	describe('video', () => {
@@ -338,7 +324,6 @@ describe('LocalDrive', () => {
 			const rendered = renderWithApp(LocalDrive);
 			await screen.findByText('Upload Photos & Videos');
 			await pickFiles(rendered.container, [file]);
-			await confirmUpload();
 			return rendered;
 		}
 
@@ -346,7 +331,7 @@ describe('LocalDrive', () => {
 			const { container } = renderWithApp(LocalDrive);
 			await screen.findByText('Upload Photos & Videos');
 
-			const accept = container.querySelector('input[type="file"]')?.getAttribute('accept');
+			const accept = filesInput(container).getAttribute('accept');
 			expect(accept).toContain('video/mp4');
 			expect(accept).toContain('video/quicktime');
 		});
@@ -354,11 +339,10 @@ describe('LocalDrive', () => {
 		it('waits for the transcode job and counts what it added', async () => {
 			vi.mocked(photosService.uploadLocalPhoto).mockResolvedValue(job(JobState.SCHEDULED));
 			vi.mocked(pollJob).mockResolvedValue(job(JobState.FINISHED, { numAdded: 1 }));
-			const { toast } = await uploadVideo();
+			await uploadVideo();
 
-			await vi.waitFor(() => expect(toast.toasts[0]?.severity).toBe('success'));
+			expect(await finalMessage()).toBe('Uploaded 1 new video.');
 			expect(pollJob).toHaveBeenCalledWith('j1');
-			expect(toast.toasts[0].message).toBe('Uploaded 1 video');
 		});
 
 		it('names an HDR failure and says how to fix it', async () => {
@@ -369,20 +353,18 @@ describe('LocalDrive', () => {
 					failures: [{ name: 'clip.mov', category: 'hdr' }]
 				})
 			);
-			const { toast } = await uploadVideo();
+			await uploadVideo();
 
-			await vi.waitFor(() => expect(toast.toasts[0]?.severity).toBe('error'));
-			expect(toast.toasts[0].message).toBe(`Failed 1: clip.mov (HDR video). ${HDR_HINT}`);
+			expect(await finalMessage()).toBe(`Failed 1: clip.mov (HDR video). ${HDR_HINT}`);
 		});
 
 		it('reports a file nginx refused as too large', async () => {
 			vi.mocked(photosService.uploadLocalPhoto).mockRejectedValue(
 				new ApiError(413, 'HTTP error! status: 413')
 			);
-			const { toast } = await uploadVideo(videoFile('huge.mov'));
+			await uploadVideo(videoFile('huge.mov'));
 
-			await vi.waitFor(() => expect(toast.toasts[0]?.severity).toBe('error'));
-			expect(toast.toasts[0].message).toBe('Failed 1: huge.mov (too large).');
+			expect(await finalMessage()).toBe('Failed 1: huge.mov (too large).');
 		});
 	});
 });

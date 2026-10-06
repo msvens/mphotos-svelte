@@ -108,7 +108,7 @@ describe('GoogleDrive', () => {
 		});
 		afterEach(() => vi.useRealTimers());
 
-		/** Open the dialog with the given counts; returns once it shows them. */
+		/** Click IMPORT FROM DRIVE with the given counts; returns once the check has resolved. */
 		async function openImport(counts = { images: 3, videos: 0 }) {
 			vi.mocked(driveService.checkDrive).mockResolvedValue(counts);
 			const rendered = renderWithApp(GoogleDrive, { state: ownerState({ driveFolderId: 'fid' }) });
@@ -118,15 +118,20 @@ describe('GoogleDrive', () => {
 			return rendered;
 		}
 
-		it('shows what is new, by kind', async () => {
-			await openImport({ images: 10, videos: 1 });
-			expect(screen.getByText(/10 new images and 1 new video to import/)).toBeInTheDocument();
-		});
-
-		it('has nothing to start when the folder has nothing new', async () => {
+		it('says there is nothing new, with only a close button', async () => {
 			await openImport({ images: 0, videos: 0 });
 			expect(screen.getByText('There is nothing new to import.')).toBeInTheDocument();
-			expect(screen.getByRole('button', { name: 'START' })).toBeDisabled();
+			expect(screen.getByRole('button', { name: 'CLOSE' })).toBeEnabled();
+			expect(screen.queryByRole('button', { name: 'START' })).not.toBeInTheDocument();
+			expect(driveService.scheduleAddPhotosJob).not.toHaveBeenCalled();
+		});
+
+		it('closes the dialog when scheduling fails', async () => {
+			vi.mocked(driveService.scheduleAddPhotosJob).mockRejectedValue(new Error('boom'));
+			const { toast } = await openImport();
+
+			expect(toast.toasts[0]?.message).toBe('Failed to start import');
+			expect(screen.queryByRole('button', { name: 'CLOSE' })).not.toBeInTheDocument();
 		});
 
 		it('schedules only the image job when there are no videos, and polls until finished', async () => {
@@ -134,17 +139,20 @@ describe('GoogleDrive', () => {
 			vi.mocked(driveService.getJobStatus).mockResolvedValue(
 				job(JobState.FINISHED, { percent: 100, numProcessed: 3, numAdded: 3 })
 			);
-			const { photos } = await openImport();
-			const load = vi.spyOn(photos, 'load').mockResolvedValue(undefined);
+			// Spy before the click: the import starts straight away and refreshes when it finishes.
+			const rendered = renderWithApp(GoogleDrive, { state: ownerState({ driveFolderId: 'fid' }) });
+			const load = vi.spyOn(rendered.photos, 'load').mockResolvedValue(undefined);
+			vi.mocked(driveService.checkDrive).mockResolvedValue({ images: 3, videos: 0 });
+			await vi.advanceTimersByTimeAsync(0);
+			await fireEvent.click(screen.getByRole('button', { name: 'IMPORT FROM DRIVE' }));
 
-			await fireEvent.click(screen.getByRole('button', { name: 'START' }));
 			await vi.advanceTimersByTimeAsync(0); // flush schedule
 			await vi.advanceTimersByTimeAsync(500); // one poll tick
 
 			expect(driveService.scheduleAddVideosJob).not.toHaveBeenCalled();
 			expect(driveService.getJobStatus).toHaveBeenCalledWith('j1');
-			// FINISHED stops the import → the button is enabled 'OK', not 'IMPORTING...'.
-			expect(screen.getByRole('button', { name: 'OK' })).toBeInTheDocument();
+			// FINISHED stops the import → the button is enabled 'CLOSE', not 'IMPORTING...'.
+			expect(screen.getByRole('button', { name: 'CLOSE' })).toBeEnabled();
 			expect(screen.getByText('Images added 3, skipped 0, failed 0.')).toBeInTheDocument();
 			// New items must reach the cached list without a reload.
 			expect(load).toHaveBeenCalledWith(true, '', true);
@@ -169,9 +177,6 @@ describe('GoogleDrive', () => {
 					: job(JobState.FINISHED, { percent: 100, numProcessed: 3, numAdded: 3 })
 			);
 			await openImport({ images: 3, videos: 2 });
-
-			await fireEvent.click(screen.getByRole('button', { name: 'START' }));
-			await vi.advanceTimersByTimeAsync(0);
 			await vi.advanceTimersByTimeAsync(1000); // image (500ms) and video (1s) polls
 
 			expect(driveService.getJobStatus).toHaveBeenCalledWith('j1');
@@ -180,7 +185,7 @@ describe('GoogleDrive', () => {
 				screen.getByText('Videos added 1, skipped 0, failed 1: clip.mov (HDR video).')
 			).toBeInTheDocument();
 			expect(screen.getByText(/Turn off HDR video/)).toBeInTheDocument();
-			expect(screen.getByRole('button', { name: 'OK' })).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: 'CLOSE' })).toBeEnabled();
 		});
 
 		it("shows an aborted job's error message", async () => {
@@ -189,9 +194,6 @@ describe('GoogleDrive', () => {
 				job(JobState.ABORTED, { error: { code: 500, message: 'disk full' } })
 			);
 			const { toast } = await openImport();
-
-			await fireEvent.click(screen.getByRole('button', { name: 'START' }));
-			await vi.advanceTimersByTimeAsync(0);
 			await vi.advanceTimersByTimeAsync(500);
 
 			expect(toast.toasts[0]?.message).toBe('Job aborted: disk full');
