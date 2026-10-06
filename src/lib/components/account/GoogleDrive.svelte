@@ -50,8 +50,6 @@
 		}
 	});
 
-	const plural = (n: number, word: string) => `${n} new ${word}${n === 1 ? '' : 's'}`;
-
 	async function handleAuthToggle() {
 		if (authenticated) {
 			try {
@@ -82,15 +80,18 @@
 		}
 	}
 
+	// The button is the go-ahead: start right away when there is something new, else just say so.
 	async function handleOpenDownload() {
 		try {
 			counts = await driveService.checkDrive();
-			imageJob = videoJob = null;
-			openDownload = true;
 		} catch (e) {
 			console.error('Error checking drive:', e);
 			toast.error('Failed to check Google Drive');
+			return;
 		}
+		imageJob = videoJob = null;
+		openDownload = true;
+		if (counts.images + counts.videos > 0) await handleStart();
 	}
 
 	async function handleStart() {
@@ -106,6 +107,7 @@
 			console.error('Error scheduling drive job:', e);
 			toast.error('Failed to start import');
 			isDownloading = false;
+			openDownload = false;
 			return;
 		}
 		[imageJob, videoJob] = scheduled;
@@ -227,27 +229,15 @@
 		</div>
 	{:else}
 		<p class="text-sm text-gray-900 dark:text-white">
-			{#if counts.images + counts.videos === 0}
-				There is nothing new to import.
-			{:else}
-				There {counts.images + counts.videos === 1 ? 'is' : 'are'}
-				{videoEnabled
-					? `${plural(counts.images, 'image')} and ${plural(counts.videos, 'video')}`
-					: plural(counts.images, 'image')} to import.
-			{/if}
+			{counts.images + counts.videos === 0
+				? 'There is nothing new to import.'
+				: 'Starting the import…'}
 		</p>
 	{/if}
 
 	{#snippet actions()}
-		{#if started}
-			<Button onclick={closeDownload} disabled={isDownloading}>
-				{isDownloading ? 'IMPORTING...' : 'OK'}
-			</Button>
-		{:else}
-			<Button onclick={closeDownload} variant="outlined" disabled={isDownloading}>CANCEL</Button>
-			<Button onclick={handleStart} disabled={isDownloading || counts.images + counts.videos === 0}>
-				START
-			</Button>
-		{/if}
+		<Button onclick={closeDownload} disabled={isDownloading}>
+			{isDownloading ? 'IMPORTING...' : 'CLOSE'}
+		</Button>
 	{/snippet}
 </Dialog>

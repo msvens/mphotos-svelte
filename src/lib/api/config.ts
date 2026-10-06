@@ -64,6 +64,9 @@ export const API_ENDPOINTS = {
 	// Drive
 	driveCheck: '/api/drive/check',
 
+	// Local
+	localCheck: '/api/local/check',
+
 	capabilities: '/api/capabilities',
 
 	// Camera endpoints
