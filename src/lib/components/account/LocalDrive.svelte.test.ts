@@ -215,13 +215,55 @@ describe('LocalDrive', () => {
 			expect(md5File).toHaveBeenCalledTimes(1);
 		});
 
-		it('has nothing to upload when everything is already there', async () => {
+		it('names the files that are already uploaded when nothing is new', async () => {
+			vi.mocked(photosService.checkLocalPhotos).mockImplementation(async (md5s) =>
+				Object.fromEntries(md5s.map((m) => [m, true]))
+			);
+			const { container } = renderWithApp(LocalDrive);
+
+			await pickFiles(container, [jpeg('a.jpg'), jpeg('b.jpg'), jpeg('c.jpg')]);
+			expect(
+				await screen.findByText(
+					'Nothing new to upload: a.jpg, b.jpg and c.jpg are already uploaded.'
+				)
+			).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: 'UPLOAD' })).toBeDisabled();
+		});
+
+		it('names a single already-uploaded file', async () => {
 			vi.mocked(photosService.checkLocalPhotos).mockResolvedValue({ 'md5:a.jpg': true });
 			const { container } = renderWithApp(LocalDrive);
 
-			await pickFiles(container, [jpeg('a.jpg')], folderInput(container));
-			expect(await screen.findByText('There is nothing new to upload.')).toBeInTheDocument();
-			expect(screen.getByRole('button', { name: 'UPLOAD' })).toBeDisabled();
+			await pickFiles(container, [jpeg('a.jpg')]);
+			expect(
+				await screen.findByText('Nothing new to upload: a.jpg is already uploaded.')
+			).toBeInTheDocument();
+		});
+
+		it('lists already-uploaded files when there are too many to name', async () => {
+			vi.mocked(photosService.checkLocalPhotos).mockImplementation(async (md5s) =>
+				Object.fromEntries(md5s.map((m) => [m, true]))
+			);
+			const { container } = renderWithApp(LocalDrive);
+			const files = ['a', 'b', 'c', 'd'].map((n) => jpeg(`${n}.jpg`));
+
+			await pickFiles(container, files, folderInput(container));
+			expect(
+				await screen.findByText('Nothing new to upload: all 4 files are already uploaded.')
+			).toBeInTheDocument();
+			expect(screen.getByText('d.jpg')).toBeInTheDocument();
+		});
+
+		it('lists already-uploaded files alongside the new ones', async () => {
+			vi.mocked(photosService.checkLocalPhotos).mockResolvedValue({
+				'md5:a.jpg': false,
+				'md5:b.jpg': true
+			});
+			const { container } = renderWithApp(LocalDrive);
+
+			await pickFiles(container, [jpeg('a.jpg'), jpeg('b.jpg')]);
+			expect(await screen.findByText('Show already uploaded')).toBeInTheDocument();
+			expect(screen.getByText('b.jpg')).toBeInTheDocument();
 		});
 
 		it('does not ask the server when nothing is supported', async () => {
@@ -229,7 +271,9 @@ describe('LocalDrive', () => {
 			const notes = new File(['n'], 'notes.txt', { type: 'text/plain' });
 
 			await pickFiles(container, [notes], folderInput(container));
-			expect(await screen.findByText('There is nothing new to upload.')).toBeInTheDocument();
+			expect(
+				await screen.findByText('None of the chosen files can be uploaded.')
+			).toBeInTheDocument();
 			expect(photosService.checkLocalPhotos).not.toHaveBeenCalled();
 		});
 

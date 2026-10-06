@@ -30,7 +30,7 @@
 	/** The result of a pick, awaiting confirmation: which files are new, and what was skipped. */
 	let scan = $state<{
 		fresh: File[];
-		checked: number;
+		existing: File[];
 		repeats: number;
 		unsupported: number;
 	} | null>(null);
@@ -55,6 +55,27 @@
 
 	const plural = (n: number, word: string) => `${n} ${word}${n === 1 ? '' : 's'}`;
 	const pathOf = (file: File) => file.webkitRelativePath || file.name;
+
+	// Up to this many already-uploaded files are named in the dialog's headline; more go in a list.
+	const NAMED_LIMIT = 3;
+
+	/** `"a.jpg"`, `"a.jpg and b.jpg"`, `"a.jpg, b.jpg and c.jpg"`. */
+	function nameList(files: File[]): string {
+		const names = files.map(pathOf);
+		return names.length === 1 ? names[0] : `${names.slice(0, -1).join(', ')} and ${names.at(-1)}`;
+	}
+
+	/** The dialog's first line: how many are new, or why there is nothing to upload. */
+	function headline({ fresh, existing }: { fresh: File[]; existing: File[] }): string {
+		if (fresh.length > 0)
+			return `${fresh.length} new of ${plural(fresh.length + existing.length, 'file')}.`;
+		if (existing.length === 0) return 'None of the chosen files can be uploaded.';
+		if (existing.length <= NAMED_LIMIT) {
+			const verb = existing.length === 1 ? 'is' : 'are';
+			return `Nothing new to upload: ${nameList(existing)} ${verb} already uploaded.`;
+		}
+		return `Nothing new to upload: all ${existing.length} files are already uploaded.`;
+	}
 
 	/** Hash what was picked and ask the server which files it lacks; the dialog takes it from there. */
 	async function handlePick(event: Event) {
@@ -93,9 +114,10 @@
 
 			checking = true;
 			const known = byHash.size > 0 ? await photosService.checkLocalPhotos([...byHash.keys()]) : {};
+			const entries = [...byHash];
 			scan = {
-				fresh: [...byHash].filter(([md5]) => !known[md5]).map(([, file]) => file),
-				checked: byHash.size,
+				fresh: entries.filter(([md5]) => !known[md5]).map(([, file]) => file),
+				existing: entries.filter(([md5]) => known[md5]).map(([, file]) => file),
 				repeats,
 				unsupported: picked.length - supported.length
 			};
@@ -287,11 +309,7 @@
 <Dialog open={scan !== null} onClose={() => (scan = null)} title="Upload to the service">
 	{#if scan}
 		<div class="space-y-2 text-sm text-gray-900 dark:text-white">
-			<p>
-				{scan.fresh.length === 0
-					? 'There is nothing new to upload.'
-					: `${scan.fresh.length} new of ${plural(scan.checked, 'file')}.`}
-			</p>
+			<p>{headline(scan)}</p>
 			{#if scan.repeats > 0}
 				<p class="text-gray-600 dark:text-gray-400">
 					{plural(scan.repeats, 'duplicate')} within the selection skipped.
@@ -307,6 +325,19 @@
 					<summary class="cursor-pointer text-gray-600 dark:text-gray-400">Show new files</summary>
 					<ul class="mt-2 max-h-60 overflow-y-auto text-xs text-gray-600 dark:text-gray-400">
 						{#each scan.fresh as file (file)}
+							<li>{pathOf(file)}</li>
+						{/each}
+					</ul>
+				</details>
+			{/if}
+			<!-- Names the headline didn't: all of them when some are new, or too many to name inline. -->
+			{#if scan.existing.length > 0 && (scan.fresh.length > 0 || scan.existing.length > NAMED_LIMIT)}
+				<details open={scan.fresh.length === 0}>
+					<summary class="cursor-pointer text-gray-600 dark:text-gray-400">
+						Show already uploaded
+					</summary>
+					<ul class="mt-2 max-h-60 overflow-y-auto text-xs text-gray-600 dark:text-gray-400">
+						{#each scan.existing as file (file)}
 							<li>{pathOf(file)}</li>
 						{/each}
 					</ul>
