@@ -160,6 +160,32 @@ describe('photosService', () => {
 		});
 	});
 
+	describe('checkLocalPhotos', () => {
+		it('posts the md5s and returns the map', async () => {
+			vi.mocked(api.post).mockResolvedValue({ md5s: { a: true, b: false } });
+			const result = await photosService.checkLocalPhotos(['a', 'b']);
+			expect(api.post).toHaveBeenCalledWith(API_ENDPOINTS.localCheck, { md5s: ['a', 'b'] });
+			expect(result).toEqual({ a: true, b: false });
+		});
+
+		it('sends large lists in batches of 1000 and merges the answers', async () => {
+			const md5s = Array.from({ length: 1001 }, (_, i) => `h${i}`);
+			vi.mocked(api.post).mockImplementation(async (_url, body) => ({
+				md5s: Object.fromEntries((body as { md5s: string[] }).md5s.map((h) => [h, false]))
+			}));
+			const result = await photosService.checkLocalPhotos(md5s);
+			expect(api.post).toHaveBeenCalledTimes(2);
+			expect(vi.mocked(api.post).mock.calls[0][1]).toEqual({ md5s: md5s.slice(0, 1000) });
+			expect(vi.mocked(api.post).mock.calls[1][1]).toEqual({ md5s: ['h1000'] });
+			expect(Object.keys(result)).toHaveLength(1001);
+		});
+
+		it('makes no request for an empty list', async () => {
+			expect(await photosService.checkLocalPhotos([])).toEqual({});
+			expect(api.post).not.toHaveBeenCalled();
+		});
+	});
+
 	describe('deletePhoto', () => {
 		it('sends delete with removeFiles flag', async () => {
 			vi.mocked(api.delete).mockResolvedValue(mockPhoto);

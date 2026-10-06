@@ -131,6 +131,6 @@ describe('account page gating', () => {
 
 		await fireEvent.click(screen.getByRole('button', { name: 'Local Drive' }));
 
-		expect(await screen.findByRole('button', { name: 'UPLOAD PHOTOS' })).toBeInTheDocument();
+		expect(await screen.findByRole('button', { name: 'CHOOSE FOLDER' })).toBeInTheDocument();
 	});
 });

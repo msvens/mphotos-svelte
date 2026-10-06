@@ -6,13 +6,14 @@ import { renderWithApp } from '$lib/test-utils';
 import { JobState, type Job, type PhotoMetadata } from '$lib/api/types';
 import LocalDrive from './LocalDrive.svelte';
 import { HDR_HINT, pollJob } from './jobs';
+import { md5File } from './localScan';
 
 vi.mock('$lib/api/services', () => ({
 	authService: { isLoggedIn: vi.fn() },
 	userService: { getUser: vi.fn(), getUserConfig: vi.fn() },
 	guestsService: { isGuest: vi.fn(), getGuest: vi.fn() },
 	albumsService: { getAlbumPhotos: vi.fn() },
-	photosService: { getPhotos: vi.fn(), uploadLocalPhoto: vi.fn() },
+	photosService: { getPhotos: vi.fn(), uploadLocalPhoto: vi.fn(), checkLocalPhotos: vi.fn() },
 	capabilitiesService: { getCapabilities: vi.fn() },
 	isJob: (r: object) => 'state' in r
 }));
@@ -23,7 +24,20 @@ vi.mock('./jobs', async (importOriginal) => ({
 	pollJob: vi.fn()
 }));
 
-const videoFile = (name: string) => new File(['x'], name, { type: 'video/quicktime' });
+// md5File has its own tests (with the real WASM hasher); here a file's "hash" is its content, so
+// files built with the same content count as duplicates.
+vi.mock('./localScan', async (importOriginal) => ({
+	...(await importOriginal<typeof import('./localScan')>()),
+	md5File: vi.fn()
+}));
+const fakeMd5 = async (file: File, onBytes?: (n: number) => void) => {
+	onBytes?.(file.size);
+	return `md5:${await file.text()}`;
+};
+
+// Content defaults to the name, so distinct files hash differently.
+const videoFile = (name: string, content = name) =>
+	new File([content], name, { type: 'video/quicktime' });
 
 const job = (state: JobState, over: Partial<Job> = {}): Job => ({
 	id: 'j1',
@@ -38,11 +52,20 @@ const job = (state: JobState, over: Partial<Job> = {}): Job => ({
 	...over
 });
 
-const jpeg = (name: string) => new File(['x'], name, { type: 'image/jpeg' });
+const jpeg = (name: string, content = name) => new File([content], name, { type: 'image/jpeg' });
 
-function pickFiles(container: HTMLElement, files: File[]) {
-	const input = container.querySelector('input[type="file"]') as HTMLInputElement;
+const filesInput = (container: HTMLElement) =>
+	container.querySelector('input[type="file"]:not([webkitdirectory])') as HTMLInputElement;
+const folderInput = (container: HTMLElement) =>
+	container.querySelector('input[webkitdirectory]') as HTMLInputElement;
+
+function pickFiles(container: HTMLElement, files: File[], input = filesInput(container)) {
 	return fireEvent.change(input, { target: { files } });
+}
+
+/** Confirm the "N new" dialog once the pick has been hashed and checked. */
+async function confirmUpload() {
+	await fireEvent.click(await screen.findByRole('button', { name: 'UPLOAD' }));
 }
 
 beforeEach(() => {
@@ -52,6 +75,10 @@ beforeEach(() => {
 	vi.mocked(capabilitiesService.getCapabilities)
 		.mockReset()
 		.mockResolvedValue({ videoEnabled: false });
+	vi.mocked(photosService.checkLocalPhotos)
+		.mockReset()
+		.mockImplementation(async (md5s) => Object.fromEntries(md5s.map((m) => [m, false])));
+	vi.mocked(md5File).mockReset().mockImplementation(fakeMd5);
 	vi.mocked(pollJob).mockReset();
 	vi.spyOn(console, 'error').mockImplementation(() => {});
 });
@@ -59,8 +86,10 @@ beforeEach(() => {
 describe('LocalDrive', () => {
 	it('restricts the file picker to supported image formats', () => {
 		const { container } = renderWithApp(LocalDrive);
-		const input = container.querySelector('input[type="file"]');
-		expect(input).toHaveAttribute('accept', 'image/jpeg,image/png,image/gif,image/tiff,image/bmp');
+		expect(filesInput(container)).toHaveAttribute(
+			'accept',
+			'image/jpeg,image/png,image/gif,image/tiff,image/bmp'
+		);
 	});
 
 	it('uploads each chosen file once, in order', async () => {
@@ -68,7 +97,7 @@ describe('LocalDrive', () => {
 		const [a, b] = [jpeg('a.jpg'), jpeg('b.jpg')];
 
 		await pickFiles(container, [a, b]);
-		await fireEvent.click(screen.getByRole('button', { name: 'UPLOAD PHOTOS' }));
+		await confirmUpload();
 
 		await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalledTimes(2));
 		expect(photosService.uploadLocalPhoto).toHaveBeenNthCalledWith(1, a);
@@ -82,7 +111,7 @@ describe('LocalDrive', () => {
 		const { container, toast } = renderWithApp(LocalDrive);
 
 		await pickFiles(container, [jpeg('a.jpg'), jpeg('b.jpg')]);
-		await fireEvent.click(screen.getByRole('button', { name: 'UPLOAD PHOTOS' }));
+		await confirmUpload();
 
 		await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalledTimes(2));
 		// A duplicate is benign: informational, and named as a skip.
@@ -97,7 +126,7 @@ describe('LocalDrive', () => {
 		const { container, toast } = renderWithApp(LocalDrive);
 
 		await pickFiles(container, [jpeg('a.jpg'), jpeg('b.jpg')]);
-		await fireEvent.click(screen.getByRole('button', { name: 'UPLOAD PHOTOS' }));
+		await confirmUpload();
 
 		await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalledTimes(2));
 		await vi.waitFor(() => expect(toast.toasts[0]?.severity).toBe('error'));
@@ -111,7 +140,7 @@ describe('LocalDrive', () => {
 		const load = vi.spyOn(photos, 'load').mockResolvedValue(undefined);
 
 		await pickFiles(container, [jpeg('a.jpg')]);
-		await fireEvent.click(screen.getByRole('button', { name: 'UPLOAD PHOTOS' }));
+		await confirmUpload();
 
 		await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalled());
 		expect(load).toHaveBeenCalledWith(state.isUser, state.user.photoStreamAlbumId, true);
@@ -123,15 +152,137 @@ describe('LocalDrive', () => {
 		const load = vi.spyOn(photos, 'load').mockResolvedValue(undefined);
 
 		await pickFiles(container, [jpeg('a.jpg')]);
-		await fireEvent.click(screen.getByRole('button', { name: 'UPLOAD PHOTOS' }));
+		await confirmUpload();
 
 		await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalled());
 		expect(load).not.toHaveBeenCalled();
 	});
 
-	it('disables upload until files are chosen', () => {
-		renderWithApp(LocalDrive);
-		expect(screen.getByRole('button', { name: 'UPLOAD PHOTOS' })).toBeDisabled();
+	describe('checking before upload', () => {
+		it('offers a folder picker', async () => {
+			const { container } = renderWithApp(LocalDrive);
+			const click = vi.spyOn(folderInput(container), 'click');
+			await fireEvent.click(screen.getByRole('button', { name: 'CHOOSE FOLDER' }));
+			expect(click).toHaveBeenCalled();
+		});
+
+		it('uploads only the files the server does not have', async () => {
+			vi.mocked(photosService.checkLocalPhotos).mockResolvedValue({
+				'md5:a.jpg': false,
+				'md5:b.jpg': true,
+				'md5:c.jpg': false
+			});
+			const { container } = renderWithApp(LocalDrive);
+			const [a, b, c] = [jpeg('a.jpg'), jpeg('b.jpg'), jpeg('c.jpg')];
+
+			await pickFiles(container, [a, b, c], folderInput(container));
+			expect(await screen.findByText('2 new of 3 files.')).toBeInTheDocument();
+			expect(photosService.checkLocalPhotos).toHaveBeenCalledWith([
+				'md5:a.jpg',
+				'md5:b.jpg',
+				'md5:c.jpg'
+			]);
+			await confirmUpload();
+
+			await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalledTimes(2));
+			expect(photosService.uploadLocalPhoto).toHaveBeenNthCalledWith(1, a);
+			expect(photosService.uploadLocalPhoto).toHaveBeenNthCalledWith(2, c);
+		});
+
+		it('uploads identical files once and says so', async () => {
+			const { container } = renderWithApp(LocalDrive);
+			const first = jpeg('a.jpg', 'same');
+
+			await pickFiles(container, [first, jpeg('copy.jpg', 'same')], folderInput(container));
+			expect(
+				await screen.findByText('1 duplicate within the selection skipped.')
+			).toBeInTheDocument();
+			expect(photosService.checkLocalPhotos).toHaveBeenCalledWith(['md5:same']);
+			await confirmUpload();
+
+			await vi.waitFor(() => expect(photosService.uploadLocalPhoto).toHaveBeenCalledTimes(1));
+			expect(photosService.uploadLocalPhoto).toHaveBeenCalledWith(first);
+		});
+
+		it('skips unsupported files without hashing them', async () => {
+			const { container } = renderWithApp(LocalDrive);
+			const notes = new File(['n'], 'notes.txt', { type: 'text/plain' });
+			const heic = new File(['h'], 'IMG.heic', { type: 'image/heic' });
+			const twin = jpeg('._a.jpg');
+
+			await pickFiles(container, [jpeg('a.jpg'), notes, heic, twin], folderInput(container));
+			expect(await screen.findByText('3 unsupported files skipped.')).toBeInTheDocument();
+			expect(md5File).toHaveBeenCalledTimes(1);
+		});
+
+		it('has nothing to upload when everything is already there', async () => {
+			vi.mocked(photosService.checkLocalPhotos).mockResolvedValue({ 'md5:a.jpg': true });
+			const { container } = renderWithApp(LocalDrive);
+
+			await pickFiles(container, [jpeg('a.jpg')], folderInput(container));
+			expect(await screen.findByText('There is nothing new to upload.')).toBeInTheDocument();
+			expect(screen.getByRole('button', { name: 'UPLOAD' })).toBeDisabled();
+		});
+
+		it('does not ask the server when nothing is supported', async () => {
+			const { container } = renderWithApp(LocalDrive);
+			const notes = new File(['n'], 'notes.txt', { type: 'text/plain' });
+
+			await pickFiles(container, [notes], folderInput(container));
+			expect(await screen.findByText('There is nothing new to upload.')).toBeInTheDocument();
+			expect(photosService.checkLocalPhotos).not.toHaveBeenCalled();
+		});
+
+		it('reports a failed check and uploads nothing', async () => {
+			vi.mocked(photosService.checkLocalPhotos).mockRejectedValue(new Error('boom'));
+			const { container, toast } = renderWithApp(LocalDrive);
+
+			await pickFiles(container, [jpeg('a.jpg')]);
+
+			await vi.waitFor(() => expect(toast.toasts[0]?.severity).toBe('error'));
+			expect(toast.toasts[0].message).toBe('Failed to check which files are new');
+			expect(screen.queryByRole('button', { name: 'UPLOAD' })).not.toBeInTheDocument();
+		});
+
+		it('uploads nothing when the dialog is cancelled', async () => {
+			const { container } = renderWithApp(LocalDrive);
+
+			await pickFiles(container, [jpeg('a.jpg')]);
+			await screen.findByText('1 new of 1 file.');
+			await fireEvent.click(screen.getByRole('button', { name: 'CANCEL' }));
+
+			await vi.waitFor(() =>
+				expect(screen.queryByRole('button', { name: 'UPLOAD' })).not.toBeInTheDocument()
+			);
+			expect(photosService.uploadLocalPhoto).not.toHaveBeenCalled();
+		});
+
+		it('stops hashing when cancelled', async () => {
+			let finishFirst!: (md5: string) => void;
+			vi.mocked(md5File).mockImplementationOnce(
+				() => new Promise((resolve) => (finishFirst = resolve))
+			);
+			const { container } = renderWithApp(LocalDrive);
+
+			await pickFiles(container, [jpeg('a.jpg'), jpeg('b.jpg')]);
+			await fireEvent.click(await screen.findByRole('button', { name: 'CANCEL' }));
+			finishFirst('md5:a.jpg');
+
+			await vi.waitFor(() =>
+				expect(screen.getByRole('button', { name: 'CHOOSE FILES' })).toBeEnabled()
+			);
+			expect(md5File).toHaveBeenCalledTimes(1);
+			expect(photosService.checkLocalPhotos).not.toHaveBeenCalled();
+		});
+
+		it('clears the picker so the same folder can be picked again', async () => {
+			const { container } = renderWithApp(LocalDrive);
+			const input = folderInput(container);
+			const cleared = vi.spyOn(input, 'value', 'set');
+
+			await pickFiles(container, [jpeg('a.jpg')], input);
+			expect(cleared).toHaveBeenCalledWith('');
+		});
 	});
 
 	describe('video', () => {
@@ -143,7 +294,7 @@ describe('LocalDrive', () => {
 			const rendered = renderWithApp(LocalDrive);
 			await screen.findByText('Upload Photos & Videos');
 			await pickFiles(rendered.container, [file]);
-			await fireEvent.click(screen.getByRole('button', { name: 'UPLOAD FILES' }));
+			await confirmUpload();
 			return rendered;
 		}
 

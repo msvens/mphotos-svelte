@@ -179,6 +179,11 @@ export interface DriveCheck {
 	videos: number;
 }
 
+/** Answer to `/api/local/check`: each md5 sent → whether it is already imported. */
+export interface LocalCheck {
+	md5s: Record<string, boolean>;
+}
+
 /** Server features the UI needs to know about. `videoEnabled` = ffmpeg is installed. */
 export interface Capabilities {
 	videoEnabled: boolean;

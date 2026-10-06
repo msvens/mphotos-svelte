@@ -1,6 +1,8 @@
-import type { PhotoMetadata, PhotoList, AffectedItems, Album, Job } from '../types';
+import type { PhotoMetadata, PhotoList, AffectedItems, Album, Job, LocalCheck } from '../types';
 import { API_ENDPOINTS, createApiUrl } from '../config';
 import { api } from '../client';
+
+const CHECK_BATCH = 1000;
 
 export interface EditPhotoParams {
 	rotation: number;
@@ -32,6 +34,7 @@ export interface PhotosService {
 	editPhoto(id: string, params: EditPhotoParams): Promise<PhotoMetadata>;
 	getEditPreviewUrl(id: string, params: EditPhotoParams): string;
 	uploadLocalPhoto(file: File): Promise<PhotoMetadata | Job>;
+	checkLocalPhotos(md5s: string[]): Promise<Record<string, boolean>>;
 	deletePhoto(id: string, removeFiles: boolean): Promise<PhotoMetadata>;
 	deletePhotos(removeFiles: boolean): Promise<PhotoList>;
 	setPhotoAlbums(photoId: string, albumIds: string[]): Promise<AffectedItems>;
@@ -117,6 +120,18 @@ export const photosService: PhotosService = {
 		formData.append('sourceId', file.name);
 		formData.append('sourceDate', new Date(file.lastModified).toISOString());
 		return api.post<PhotoMetadata | Job>('/api/local/upload', formData);
+	},
+
+	async checkLocalPhotos(md5s: string[]) {
+		const known: Record<string, boolean> = {};
+		// The server binds one Postgres parameter per md5 (capped at 65535), so send them in batches.
+		for (let i = 0; i < md5s.length; i += CHECK_BATCH) {
+			const result = await api.post<LocalCheck>(API_ENDPOINTS.localCheck, {
+				md5s: md5s.slice(i, i + CHECK_BATCH)
+			});
+			Object.assign(known, result.md5s);
+		}
+		return known;
 	},
 
 	async deletePhoto(id: string, removeFiles: boolean) {
