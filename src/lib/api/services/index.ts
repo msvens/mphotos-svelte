@@ -5,4 +5,5 @@ export * from './user';
 export * from './guests';
 export * from './auth';
 export * from './drive';
+export * from './jobs';
 export * from './capabilities';

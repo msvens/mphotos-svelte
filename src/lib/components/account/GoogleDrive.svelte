@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { capabilitiesService, driveService, userService } from '$lib/api/services';
+	import { capabilitiesService, driveService, jobsService, userService } from '$lib/api/services';
 	import { getAppState } from '$lib/stores/app.svelte';
 	import { getPhotoState } from '$lib/stores/photos.svelte';
 	import { getToastState } from '$lib/stores/toast.svelte';
@@ -8,7 +8,7 @@
 	import Button from '$lib/components/ui/Button.svelte';
 	import TextField from '$lib/components/ui/TextField.svelte';
 	import Dialog from '$lib/components/ui/Dialog.svelte';
-	import { failureSummary, hasHdrFailure, HDR_HINT, pollJob } from './jobs';
+	import { failureSummary, hasEnded, hasHdrFailure, HDR_HINT, pollJob } from './jobs';
 
 	const app = getAppState();
 	const photoState = getPhotoState();
@@ -31,6 +31,8 @@
 	let imageJob = $state<Job | null>(null);
 	let videoJob = $state<Job | null>(null);
 	let isDownloading = $state(false);
+	/** STOP was pressed; the jobs run on until the server reports them CANCELLED. */
+	let stopping = $state(false);
 	let started = $derived(imageJob !== null || videoJob !== null);
 
 	onMount(async () => {
@@ -111,6 +113,8 @@
 			return;
 		}
 		[imageJob, videoJob] = scheduled;
+		// STOP pressed while the jobs were still being scheduled: cancel them now they exist.
+		if (stopping) await cancelRunning();
 
 		try {
 			const [images, videos] = await Promise.all([
@@ -134,10 +138,35 @@
 		}
 	}
 
+	function handleStop() {
+		stopping = true;
+		cancelRunning();
+	}
+
+	/** Ask the server to stop every job that hasn't ended; the polls pick up the CANCELLED state. */
+	async function cancelRunning() {
+		const running = [imageJob, videoJob].filter((j): j is Job => j !== null && !hasEnded(j));
+		try {
+			await Promise.all(running.map((j) => jobsService.cancelJob(j.id)));
+		} catch (e) {
+			console.error('Error cancelling drive job:', e);
+			toast.error('Failed to stop the import');
+			stopping = false;
+		}
+	}
+
 	function closeDownload() {
 		openDownload = false;
 		imageJob = videoJob = null;
 		isDownloading = false;
+		stopping = false;
+	}
+
+	/** `"Images added 3, …"`, or `"Images stopped after 3 of 10: added 3, …"` for a cancelled job. */
+	function result(label: string, j: Job): string {
+		const stopped =
+			j.state === JobState.CANCELLED ? ` stopped after ${j.numProcessed} of ${j.numFiles}:` : '';
+		return `${label}${stopped} ${outcome(j)}.`;
 	}
 
 	/** `"added 3, skipped 1, failed 1: a.mov (HDR video)"` for a finished job. */
@@ -205,8 +234,8 @@
 					<div class="h-2 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
 						<div class="h-full bg-blue-500 transition-all" style="width: {imageJob.percent}%"></div>
 					</div>
-					{#if imageJob.state === JobState.FINISHED}
-						<p class="text-sm text-gray-600 dark:text-gray-400">Images {outcome(imageJob)}.</p>
+					{#if imageJob.state === JobState.FINISHED || imageJob.state === JobState.CANCELLED}
+						<p class="text-sm text-gray-600 dark:text-gray-400">{result('Images', imageJob)}</p>
 					{/if}
 				</div>
 			{/if}
@@ -214,17 +243,20 @@
 				<!-- No bar: progress only moves when a whole file finishes transcoding. -->
 				<div class="space-y-2">
 					<p class="text-sm text-gray-900 dark:text-white">
-						{videoJob.state === JobState.FINISHED || videoJob.state === JobState.ABORTED
+						{hasEnded(videoJob)
 							? `Videos: processed ${videoJob.numProcessed} of ${videoJob.numFiles}`
 							: `Videos: transcoding ${Math.min(videoJob.numProcessed + 1, videoJob.numFiles)} of ${videoJob.numFiles}…`}
 					</p>
-					{#if videoJob.state === JobState.FINISHED}
-						<p class="text-sm text-gray-600 dark:text-gray-400">Videos {outcome(videoJob)}.</p>
+					{#if videoJob.state === JobState.FINISHED || videoJob.state === JobState.CANCELLED}
+						<p class="text-sm text-gray-600 dark:text-gray-400">{result('Videos', videoJob)}</p>
 					{/if}
 					{#if showHdrHint}
 						<p class="text-sm text-amber-700 dark:text-amber-400">{HDR_HINT}</p>
 					{/if}
 				</div>
+			{/if}
+			{#if stopping && isDownloading}
+				<p class="text-sm text-gray-600 dark:text-gray-400">Stopping…</p>
 			{/if}
 		</div>
 	{:else}
@@ -236,8 +268,12 @@
 	{/if}
 
 	{#snippet actions()}
-		<Button onclick={closeDownload} disabled={isDownloading}>
-			{isDownloading ? 'IMPORTING...' : 'CLOSE'}
-		</Button>
+		{#if isDownloading}
+			<Button onclick={handleStop} variant="outlined" disabled={stopping}>
+				{stopping ? 'STOPPING...' : 'STOP'}
+			</Button>
+		{:else}
+			<Button onclick={closeDownload}>CLOSE</Button>
+		{/if}
 	{/snippet}
 </Dialog>

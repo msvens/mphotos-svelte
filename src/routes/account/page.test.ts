@@ -27,8 +27,7 @@ vi.mock('$lib/api/services', () => ({
 		isAuthenticated: vi.fn().mockResolvedValue(false),
 		disconnectDrive: vi.fn(),
 		checkDrive: vi.fn(),
-		scheduleAddPhotosJob: vi.fn(),
-		getJobStatus: vi.fn()
+		scheduleAddPhotosJob: vi.fn()
 	}
 }));
 

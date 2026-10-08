@@ -1,6 +1,6 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
-	import { capabilitiesService, isJob, photosService } from '$lib/api/services';
+	import { capabilitiesService, isJob, jobsService, photosService } from '$lib/api/services';
 	import { ApiError } from '$lib/api/client';
 	import { JobState, type JobFailure } from '$lib/api/types';
 	import { getAppState } from '$lib/stores/app.svelte';
@@ -34,8 +34,13 @@
 		| { kind: 'uploading'; current: number; total: number; fileName: string; transcoding: boolean }
 		| { kind: 'done'; message: string; failed: boolean };
 	let phase = $state<Phase | null>(null);
-	/** STOP was pressed: checking ends at once, uploading after the current file. */
+	/**
+	 * STOP was pressed: checking ends at once, uploading after the current file — except a video
+	 * being transcoded, whose server job is cancelled.
+	 */
 	let stopping = $state(false);
+	// The transcode job of the video being uploaded, so STOP can cancel it. Not rendered.
+	let videoJobId: string | null = null;
 	/** Only offer video when the server can transcode it (ffmpeg installed). */
 	let videoEnabled = $state(false);
 
@@ -123,6 +128,16 @@
 		await upload(fresh);
 	}
 
+	function handleStop() {
+		stopping = true;
+		if (videoJobId) cancelVideo(videoJobId);
+	}
+
+	/** If the cancel request fails, the transcode just runs to the end, as before cancel existed. */
+	function cancelVideo(id: string) {
+		jobsService.cancelJob(id).catch((e) => console.error('Error cancelling video job:', e));
+	}
+
 	async function upload(files: File[]) {
 		let uploaded = 0;
 		let duplicates = 0;
@@ -131,7 +146,7 @@
 		const failures: JobFailure[] = [];
 		const total = files.length;
 		// Sequential: the server rejects unsupported types per file, so one bad file must not abort
-		// the batch. STOP is honoured between files.
+		// the batch. STOP is honoured between files, and cancels a running transcode.
 		for (; processed < total && !stopping; processed++) {
 			const file = files[processed];
 			phase = {
@@ -147,7 +162,11 @@
 					// A video comes back as a transcode job; wait for it so the summary is exact and
 					// the server's one video worker isn't handed a queue of them at once.
 					phase.transcoding = true;
-					const job = await pollJob(result.id);
+					videoJobId = result.id;
+					// STOP pressed while the video was still uploading: cancel it now the job exists.
+					if (stopping) cancelVideo(result.id);
+					const job = await pollJob(result.id).finally(() => (videoJobId = null));
+					// A CANCELLED job's counts stay exact (the interrupted video isn't counted).
 					if (job.state === JobState.ABORTED) {
 						failed++;
 						failures.push({ name: file.name, category: 'error' });
@@ -182,15 +201,7 @@
 
 		phase = {
 			kind: 'done',
-			message: outcome(
-				uploaded,
-				duplicates,
-				failed,
-				total,
-				failures,
-				nounFor(files),
-				processed < total
-			),
+			message: outcome(uploaded, duplicates, failed, total, failures, nounFor(files), stopping),
 			failed: failed > 0
 		};
 	}
@@ -220,7 +231,9 @@
 		if (duplicates > 0)
 			parts.push(`${duplicates} ${duplicates === 1 ? 'was' : 'were'} already uploaded`);
 		if (failed > 0) parts.push(`failed ${failed}`);
-		if (parts.length === 0) parts.push(`uploaded none of ${total} new ${noun}`);
+		if (parts.length === 0) {
+			parts.push(stopped ? 'nothing was uploaded' : `uploaded none of ${total} new ${noun}`);
+		}
 		const summary = parts.join(', ');
 		// "failed N" is always the last part, so the reasons can follow it directly.
 		const reasons = failures.length > 0 ? `: ${failureSummary(failures)}` : '';
@@ -324,7 +337,7 @@
 		{#if phase?.kind === 'done'}
 			<Button onclick={() => (phase = null)}>CLOSE</Button>
 		{:else}
-			<Button onclick={() => (stopping = true)} variant="outlined" disabled={stopping}>
+			<Button onclick={handleStop} variant="outlined" disabled={stopping}>
 				{stopping ? 'STOPPING...' : 'STOP'}
 			</Button>
 		{/if}

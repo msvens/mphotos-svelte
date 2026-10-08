@@ -67,6 +67,10 @@ export const API_ENDPOINTS = {
 	// Local
 	localCheck: '/api/local/check',
 
+	// Import jobs (Drive syncs and local video uploads)
+	job: (id: string) => `/api/jobs/${id}`,
+	jobCancel: (id: string) => `/api/jobs/${id}/cancel`,
+
 	capabilities: '/api/capabilities',
 
 	// Camera endpoints

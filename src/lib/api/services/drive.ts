@@ -22,9 +22,5 @@ export const driveService = {
 	// Videos sync on their own server worker, so a transcode never blocks an image import.
 	async scheduleAddVideosJob(): Promise<Job> {
 		return api.post<Job>('/api/drive/video/job/schedule');
-	},
-
-	async getJobStatus(jobId: string): Promise<Job> {
-		return api.get<Job>(`/api/drive/job/${jobId}`);
 	}
 };
