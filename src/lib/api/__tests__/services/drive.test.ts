@@ -49,11 +49,4 @@ describe('driveService', () => {
 		expect(api.post).toHaveBeenCalledWith('/api/drive/video/job/schedule');
 		expect(result.id).toBe('v1');
 	});
-
-	it('getJobStatus fetches job by id', async () => {
-		vi.mocked(api.get).mockResolvedValue({ id: 'j1', state: 'FINISHED', percent: 100 });
-		const result = await driveService.getJobStatus('j1');
-		expect(api.get).toHaveBeenCalledWith('/api/drive/job/j1');
-		expect(result.state).toBe('FINISHED');
-	});
 });

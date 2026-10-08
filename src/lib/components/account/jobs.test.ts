@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { driveService } from '$lib/api/services';
+import { jobsService } from '$lib/api/services';
 import { JobState, type Job } from '$lib/api/types';
 import { failureSummary, hasHdrFailure, pollJob } from './jobs';
 
 vi.mock('$lib/api/services', () => ({
-	driveService: { getJobStatus: vi.fn() }
+	jobsService: { getJobStatus: vi.fn() }
 }));
 
 const job = (state: JobState, over: Partial<Job> = {}): Job => ({
@@ -22,7 +22,7 @@ const job = (state: JobState, over: Partial<Job> = {}): Job => ({
 
 beforeEach(() => {
 	vi.useFakeTimers();
-	vi.mocked(driveService.getJobStatus).mockReset();
+	vi.mocked(jobsService.getJobStatus).mockReset();
 });
 
 afterEach(() => {
@@ -31,7 +31,7 @@ afterEach(() => {
 
 describe('pollJob', () => {
 	it('reports each status and resolves when the job finishes', async () => {
-		vi.mocked(driveService.getJobStatus)
+		vi.mocked(jobsService.getJobStatus)
 			.mockResolvedValueOnce(job(JobState.STARTED))
 			.mockResolvedValueOnce(job(JobState.FINISHED, { numAdded: 1 }));
 		const onUpdate = vi.fn();
@@ -40,13 +40,13 @@ describe('pollJob', () => {
 		await vi.advanceTimersByTimeAsync(1000);
 
 		await expect(done).resolves.toMatchObject({ state: JobState.FINISHED, numAdded: 1 });
-		expect(driveService.getJobStatus).toHaveBeenCalledTimes(2);
-		expect(driveService.getJobStatus).toHaveBeenCalledWith('j1');
+		expect(jobsService.getJobStatus).toHaveBeenCalledTimes(2);
+		expect(jobsService.getJobStatus).toHaveBeenCalledWith('j1');
 		expect(onUpdate).toHaveBeenCalledTimes(2);
 	});
 
 	it('resolves (not rejects) on an aborted job, so the caller can read its error', async () => {
-		vi.mocked(driveService.getJobStatus).mockResolvedValueOnce(
+		vi.mocked(jobsService.getJobStatus).mockResolvedValueOnce(
 			job(JobState.ABORTED, { error: { code: 500, message: 'boom' } })
 		);
 
@@ -56,15 +56,24 @@ describe('pollJob', () => {
 		await expect(done).resolves.toMatchObject({ state: JobState.ABORTED });
 	});
 
+	it('resolves on a cancelled job', async () => {
+		vi.mocked(jobsService.getJobStatus).mockResolvedValueOnce(job(JobState.CANCELLED));
+
+		const done = pollJob('j1', undefined, 500);
+		await vi.advanceTimersByTimeAsync(500);
+
+		await expect(done).resolves.toMatchObject({ state: JobState.CANCELLED });
+	});
+
 	it('stops polling and rejects when a status fetch fails', async () => {
-		vi.mocked(driveService.getJobStatus).mockRejectedValueOnce(new Error('offline'));
+		vi.mocked(jobsService.getJobStatus).mockRejectedValueOnce(new Error('offline'));
 
 		const done = pollJob('j1', undefined, 500);
 		const assertion = expect(done).rejects.toThrow('offline');
 		await vi.advanceTimersByTimeAsync(2000);
 
 		await assertion;
-		expect(driveService.getJobStatus).toHaveBeenCalledTimes(1);
+		expect(jobsService.getJobStatus).toHaveBeenCalledTimes(1);
 	});
 });
 

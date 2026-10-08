@@ -193,7 +193,10 @@ export enum JobState {
 	SCHEDULED = 'SCHEDULED',
 	STARTED = 'STARTED',
 	FINISHED = 'FINISHED',
-	ABORTED = 'ABORTED'
+	/** Failed with an error. */
+	ABORTED = 'ABORTED',
+	/** Stopped by the owner; files imported before the cancel are kept. */
+	CANCELLED = 'CANCELLED'
 }
 
 /** A file a job could not import; `category` is e.g. `hdr`, `truncated`, `no-video-stream`. */

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { screen, fireEvent } from '@testing-library/svelte';
-import { capabilitiesService, driveService, userService } from '$lib/api/services';
+import { capabilitiesService, driveService, jobsService, userService } from '$lib/api/services';
 import { AppState } from '$lib/stores/app.svelte';
 import { renderWithApp } from '$lib/test-utils';
 import { JobState, type Job, type User } from '$lib/api/types';
@@ -17,9 +17,9 @@ vi.mock('$lib/api/services', () => ({
 		disconnectDrive: vi.fn(),
 		checkDrive: vi.fn(),
 		scheduleAddPhotosJob: vi.fn(),
-		scheduleAddVideosJob: vi.fn(),
-		getJobStatus: vi.fn()
+		scheduleAddVideosJob: vi.fn()
 	},
+	jobsService: { getJobStatus: vi.fn(), cancelJob: vi.fn() },
 	capabilitiesService: { getCapabilities: vi.fn() }
 }));
 
@@ -53,7 +53,8 @@ beforeEach(() => {
 	vi.mocked(capabilitiesService.getCapabilities)
 		.mockReset()
 		.mockResolvedValue({ videoEnabled: true });
-	vi.mocked(driveService.getJobStatus).mockReset();
+	vi.mocked(jobsService.getJobStatus).mockReset();
+	vi.mocked(jobsService.cancelJob).mockReset();
 	vi.mocked(userService.updateUserGDrive)
 		.mockReset()
 		.mockResolvedValue({} as User);
@@ -136,7 +137,7 @@ describe('GoogleDrive', () => {
 
 		it('schedules only the image job when there are no videos, and polls until finished', async () => {
 			vi.mocked(driveService.scheduleAddPhotosJob).mockResolvedValue(job(JobState.SCHEDULED));
-			vi.mocked(driveService.getJobStatus).mockResolvedValue(
+			vi.mocked(jobsService.getJobStatus).mockResolvedValue(
 				job(JobState.FINISHED, { percent: 100, numProcessed: 3, numAdded: 3 })
 			);
 			// Spy before the click: the import starts straight away and refreshes when it finishes.
@@ -150,7 +151,7 @@ describe('GoogleDrive', () => {
 			await vi.advanceTimersByTimeAsync(500); // one poll tick
 
 			expect(driveService.scheduleAddVideosJob).not.toHaveBeenCalled();
-			expect(driveService.getJobStatus).toHaveBeenCalledWith('j1');
+			expect(jobsService.getJobStatus).toHaveBeenCalledWith('j1');
 			// FINISHED stops the import → the button is enabled 'CLOSE', not 'IMPORTING...'.
 			expect(screen.getByRole('button', { name: 'CLOSE' })).toBeEnabled();
 			expect(screen.getByText('Images added 3, skipped 0, failed 0.')).toBeInTheDocument();
@@ -163,7 +164,7 @@ describe('GoogleDrive', () => {
 			vi.mocked(driveService.scheduleAddVideosJob).mockResolvedValue(
 				job(JobState.SCHEDULED, { id: 'v1', kind: 'video', numFiles: 2 })
 			);
-			vi.mocked(driveService.getJobStatus).mockImplementation(async (id) =>
+			vi.mocked(jobsService.getJobStatus).mockImplementation(async (id) =>
 				id === 'v1'
 					? job(JobState.FINISHED, {
 							id: 'v1',
@@ -179,8 +180,8 @@ describe('GoogleDrive', () => {
 			await openImport({ images: 3, videos: 2 });
 			await vi.advanceTimersByTimeAsync(1000); // image (500ms) and video (1s) polls
 
-			expect(driveService.getJobStatus).toHaveBeenCalledWith('j1');
-			expect(driveService.getJobStatus).toHaveBeenCalledWith('v1');
+			expect(jobsService.getJobStatus).toHaveBeenCalledWith('j1');
+			expect(jobsService.getJobStatus).toHaveBeenCalledWith('v1');
 			expect(
 				screen.getByText('Videos added 1, skipped 0, failed 1: clip.mov (HDR video).')
 			).toBeInTheDocument();
@@ -188,9 +189,72 @@ describe('GoogleDrive', () => {
 			expect(screen.getByRole('button', { name: 'CLOSE' })).toBeEnabled();
 		});
 
+		describe('STOP', () => {
+			/** Jobs report STARTED until cancelled, then CANCELLED with what they managed. */
+			function cancellableJobs() {
+				const cancelled = new Set<string>();
+				vi.mocked(jobsService.cancelJob).mockImplementation(async (id) => {
+					cancelled.add(id);
+					return job(JobState.STARTED, { id });
+				});
+				vi.mocked(jobsService.getJobStatus).mockImplementation(async (id) =>
+					cancelled.has(id)
+						? job(JobState.CANCELLED, { id, numProcessed: 1, numAdded: 1 })
+						: job(JobState.STARTED, { id, numProcessed: 1, numAdded: 1 })
+				);
+			}
+
+			it('cancels the running import and reports how far it got', async () => {
+				vi.mocked(driveService.scheduleAddPhotosJob).mockResolvedValue(job(JobState.SCHEDULED));
+				cancellableJobs();
+				const { toast } = await openImport();
+				await vi.advanceTimersByTimeAsync(500); // STARTED
+
+				await fireEvent.click(screen.getByRole('button', { name: 'STOP' }));
+				expect(jobsService.cancelJob).toHaveBeenCalledWith('j1');
+				expect(screen.getByRole('button', { name: 'STOPPING...' })).toBeDisabled();
+				expect(screen.getByText('Stopping…')).toBeInTheDocument();
+
+				await vi.advanceTimersByTimeAsync(500); // CANCELLED
+				expect(
+					screen.getByText('Images stopped after 1 of 3: added 1, skipped 0, failed 0.')
+				).toBeInTheDocument();
+				expect(screen.getByRole('button', { name: 'CLOSE' })).toBeEnabled();
+				// Stopping on request is not a failure.
+				expect(toast.toasts).toHaveLength(0);
+			});
+
+			it('cancels both the image and the video job', async () => {
+				vi.mocked(driveService.scheduleAddPhotosJob).mockResolvedValue(job(JobState.SCHEDULED));
+				vi.mocked(driveService.scheduleAddVideosJob).mockResolvedValue(
+					job(JobState.SCHEDULED, { id: 'v1', kind: 'video' })
+				);
+				cancellableJobs();
+				await openImport({ images: 3, videos: 2 });
+				await vi.advanceTimersByTimeAsync(1000);
+
+				await fireEvent.click(screen.getByRole('button', { name: 'STOP' }));
+				expect(jobsService.cancelJob).toHaveBeenCalledWith('j1');
+				expect(jobsService.cancelJob).toHaveBeenCalledWith('v1');
+			});
+
+			it('says so when the cancel request fails, and lets you try again', async () => {
+				vi.mocked(driveService.scheduleAddPhotosJob).mockResolvedValue(job(JobState.SCHEDULED));
+				vi.mocked(jobsService.getJobStatus).mockResolvedValue(job(JobState.STARTED));
+				vi.mocked(jobsService.cancelJob).mockRejectedValue(new Error('offline'));
+				const { toast } = await openImport();
+
+				await fireEvent.click(screen.getByRole('button', { name: 'STOP' }));
+				await vi.advanceTimersByTimeAsync(0);
+
+				expect(toast.toasts[0]?.message).toBe('Failed to stop the import');
+				expect(screen.getByRole('button', { name: 'STOP' })).toBeEnabled();
+			});
+		});
+
 		it("shows an aborted job's error message", async () => {
 			vi.mocked(driveService.scheduleAddPhotosJob).mockResolvedValue(job(JobState.SCHEDULED));
-			vi.mocked(driveService.getJobStatus).mockResolvedValue(
+			vi.mocked(jobsService.getJobStatus).mockResolvedValue(
 				job(JobState.ABORTED, { error: { code: 500, message: 'disk full' } })
 			);
 			const { toast } = await openImport();

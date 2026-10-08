@@ -1,11 +1,16 @@
-import { driveService } from '$lib/api/services';
+import { jobsService } from '$lib/api/services';
 import { JobState, type Job, type JobFailure } from '$lib/api/types';
 
+const ENDED = [JobState.FINISHED, JobState.ABORTED, JobState.CANCELLED];
+
+/** Whether the job will change no more: finished, failed (aborted) or stopped (cancelled). */
+export const hasEnded = (job: Job) => ENDED.includes(job.state);
+
 /**
- * Poll an import job until it finishes or aborts, reporting every status along the way.
+ * Poll an import job until it ends (finished, aborted or cancelled), reporting every status.
  *
  * A timeout chain rather than `setInterval`, so a slow status request never overlaps the next.
- * Resolves with the final job (check `state` for ABORTED); rejects if a status fetch fails.
+ * Resolves with the final job (check `state`); rejects if a status fetch fails.
  */
 export function pollJob(
 	id: string,
@@ -15,9 +20,9 @@ export function pollJob(
 	return new Promise((resolve, reject) => {
 		const tick = async () => {
 			try {
-				const job = await driveService.getJobStatus(id);
+				const job = await jobsService.getJobStatus(id);
 				onUpdate?.(job);
-				if (job.state === JobState.FINISHED || job.state === JobState.ABORTED) resolve(job);
+				if (hasEnded(job)) resolve(job);
 				else setTimeout(tick, intervalMs);
 			} catch (e) {
 				reject(e);

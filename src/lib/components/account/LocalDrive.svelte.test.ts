@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { screen, fireEvent } from '@testing-library/svelte';
-import { capabilitiesService, photosService } from '$lib/api/services';
+import { capabilitiesService, jobsService, photosService } from '$lib/api/services';
 import { ApiError } from '$lib/api/client';
 import { renderWithApp } from '$lib/test-utils';
 import { JobState, type Job, type PhotoMetadata } from '$lib/api/types';
@@ -15,6 +15,7 @@ vi.mock('$lib/api/services', () => ({
 	albumsService: { getAlbumPhotos: vi.fn() },
 	photosService: { getPhotos: vi.fn(), uploadLocalPhoto: vi.fn(), checkLocalPhotos: vi.fn() },
 	capabilitiesService: { getCapabilities: vi.fn() },
+	jobsService: { cancelJob: vi.fn() },
 	isJob: (r: object) => 'state' in r
 }));
 
@@ -83,6 +84,7 @@ beforeEach(() => {
 		.mockImplementation(async (md5s) => Object.fromEntries(md5s.map((m) => [m, false])));
 	vi.mocked(md5File).mockReset().mockImplementation(fakeMd5);
 	vi.mocked(pollJob).mockReset();
+	vi.mocked(jobsService.cancelJob).mockReset();
 	vi.spyOn(console, 'error').mockImplementation(() => {});
 });
 
@@ -356,6 +358,71 @@ describe('LocalDrive', () => {
 			await uploadVideo();
 
 			expect(await finalMessage()).toBe(`Failed 1: clip.mov (HDR video). ${HDR_HINT}`);
+		});
+
+		describe('STOP', () => {
+			/** The transcode job runs until cancelled, then reports CANCELLED. */
+			function transcodeUntilCancelled() {
+				let cancelled = false;
+				let end: ((j: Job) => void) | undefined;
+				// Like the server: a job cancelled before polling starts still ends CANCELLED.
+				vi.mocked(pollJob).mockImplementation(
+					(id) =>
+						new Promise((resolve) => {
+							end = resolve;
+							if (cancelled) resolve(job(JobState.CANCELLED, { id }));
+						})
+				);
+				vi.mocked(jobsService.cancelJob).mockImplementation(async (id) => {
+					cancelled = true;
+					end?.(job(JobState.CANCELLED, { id }));
+					return job(JobState.STARTED, { id });
+				});
+			}
+
+			it('cancels the server job of a video being transcoded', async () => {
+				vi.mocked(photosService.uploadLocalPhoto).mockResolvedValue(job(JobState.SCHEDULED));
+				transcodeUntilCancelled();
+				await uploadVideo();
+
+				await screen.findByText('Transcoding 1 of 1 new file');
+				await fireEvent.click(screen.getByRole('button', { name: 'STOP' }));
+
+				expect(jobsService.cancelJob).toHaveBeenCalledWith('j1');
+				expect(await finalMessage()).toBe('Stopped. Nothing was uploaded.');
+			});
+
+			it('cancels the job as soon as a video that was still uploading returns it', async () => {
+				let returnJob!: (j: Job) => void;
+				vi.mocked(photosService.uploadLocalPhoto).mockImplementation(
+					() => new Promise((resolve) => (returnJob = resolve))
+				);
+				transcodeUntilCancelled();
+				await uploadVideo();
+
+				await screen.findByText('Uploading 1 of 1 new file');
+				await fireEvent.click(screen.getByRole('button', { name: 'STOP' }));
+				expect(jobsService.cancelJob).not.toHaveBeenCalled();
+				returnJob(job(JobState.SCHEDULED));
+
+				expect(await finalMessage()).toBe('Stopped. Nothing was uploaded.');
+				expect(jobsService.cancelJob).toHaveBeenCalledWith('j1');
+			});
+
+			it('keeps what a cancelled job had already added', async () => {
+				vi.mocked(photosService.uploadLocalPhoto)
+					.mockResolvedValueOnce({} as PhotoMetadata)
+					.mockResolvedValue(job(JobState.SCHEDULED));
+				transcodeUntilCancelled();
+				const rendered = renderWithApp(LocalDrive);
+				await screen.findByText('Upload Photos & Videos');
+				await pickFiles(rendered.container, [jpeg('a.jpg'), videoFile('clip.mov')]);
+
+				await screen.findByText('Transcoding 2 of 2 new files');
+				await fireEvent.click(screen.getByRole('button', { name: 'STOP' }));
+
+				expect(await finalMessage()).toBe('Stopped. Uploaded 1 of 2 new files.');
+			});
 		});
 
 		it('reports a file nginx refused as too large', async () => {
